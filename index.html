@@ -5,106 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>UPA Summer Championship – Live Draft Board</title>
   <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      background: #000;
-      color: #fff;
-      margin: 0;
-      padding: 0;
-      font-size: 20px;
-    }
-    header {
-      background: #B6094B;
-      padding: 1rem;
-      text-align: center;
-    }
-    .draft-container {
-      max-width: 1600px;
-      margin: auto;
-      padding: 2rem;
-    }
-    .on-the-clock {
-      background: #1E2132;
-      padding: 2rem;
-      border-radius: 20px;
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-    .on-the-clock h1 {
-      font-size: 2.5rem;
-      margin: 0.5rem 0;
-    }
-    .timer {
-      font-size: 3rem;
-      color: #F2F4F5;
-      margin-top: 0.5rem;
-    }
-    .logo-inline {
-      height: 40px;
-      vertical-align: middle;
-      margin-right: 10px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 1rem;
-      font-size: 1.4rem;
-    }
-    th, td {
-      padding: 1rem;
-      border: 1px solid #444;
-      text-align: left;
-    }
-    th {
-      background: #B6094B;
-    }
-    .round-header {
-      font-size: 1.8rem;
-      font-weight: bold;
-      margin: 2.5rem 0 1rem;
-      border-bottom: 3px solid #B6094B;
-      padding-bottom: 0.3rem;
-    }
-    .footer {
-      text-align: center;
-      margin-top: 4rem;
-      font-size: 1rem;
-      color: #999;
-    }
-    .control-panel {
-      text-align: center;
-      margin-top: 1rem;
-    }
-    input[type="text"] {
-      padding: 0.5rem;
-      width: 50%;
-      font-size: 1.2rem;
-    }
-    button {
-      padding: 0.6rem 1.2rem;
-      margin: 0.5rem;
-      background-color: #B6094B;
-      border: none;
-      color: white;
-      font-size: 1rem;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #000;
-    }
-    #countdownOverlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.95);
-      color: #fff;
-      font-size: 6rem;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 999;
-      transition: opacity 0.4s ease;
-    }
+    body { font-family: 'Inter', sans-serif; background: #000; color: #fff; margin: 0; padding: 0; font-size: 20px; }
+    header { background: #B6094B; padding: 1rem; text-align: center; }
+    .draft-container { max-width: 1600px; margin: auto; padding: 2rem; }
+    .on-the-clock { background: #1E2132; padding: 2rem; border-radius: 20px; text-align: center; margin-bottom: 2rem; }
+    .on-the-clock h1 { font-size: 2.5rem; margin: 0.5rem 0; }
+    .timer { font-size: 3rem; color: #F2F4F5; margin-top: 0.5rem; }
+    .logo-inline { height: 40px; vertical-align: middle; margin-right: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 1.4rem; }
+    th, td { padding: 1rem; border: 1px solid #444; text-align: left; vertical-align: top; }
+    th { background: #B6094B; }
+    .round-header { font-size: 1.8rem; font-weight: bold; margin: 2.5rem 0 1rem; border-bottom: 3px solid #B6094B; padding-bottom: 0.3rem; }
+    .footer { text-align: center; margin-top: 4rem; font-size: 1rem; color: #999; }
+    .control-panel { text-align: center; margin-top: 1rem; }
+    input[type="text"] { padding: 0.5rem; margin: 0.5rem; font-size: 1.2rem; width: 45%; }
+    button { padding: 0.6rem 1.2rem; margin: 0.5rem; background-color: #B6094B; border: none; color: white; font-size: 1rem; cursor: pointer; }
+    button:hover { background-color: #000; }
+    #countdownOverlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.95); color: #fff; font-size: 6rem; font-weight: bold; display: flex; align-items: center; justify-content: center; z-index: 999; transition: opacity 0.4s ease; }
   </style>
 </head>
 <body>
@@ -123,11 +40,14 @@
   </div>
 
   <div class="control-panel">
-    <button id="startButton" onclick="startDraft()">Start Draft</button>
+    <button id="startButton" onclick="startDraft()">Start Draft</button><br>
     <input type="text" id="playerInput" placeholder="Enter drafted player name...">
+    <input type="text" id="tradeNoteInput" placeholder="Trade note (optional)">
+    <br>
     <button onclick="submitPick()">Submit Pick</button>
     <button onclick="pauseDraft()">Pause</button>
     <button onclick="resumeDraft()">Resume</button>
+    <button onclick="toggleTraded()">Toggle Traded</button>
   </div>
 
   <div id="roundTables"></div>
@@ -164,7 +84,14 @@
   for (let round = 1; round <= totalRounds; round++) {
     const order = round % 2 === 0 ? [...baseTeams].reverse() : [...baseTeams];
     order.forEach(team => {
-      picks.push({ pick: picks.length + 1, round, team, player: "" });
+      picks.push({
+        pick: picks.length + 1,
+        round,
+        team,
+        player: "",
+        traded: false,
+        trade_note: ""
+      });
     });
   }
 
@@ -175,8 +102,7 @@
 
   function getLogo(team) {
     const file = team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
-    const src = `./logos/${file}.png`;
-    return `<img src="${src}" class="logo-inline" alt="${team} logo" onerror="this.onerror=null;this.src='./logos/placeholder.png';">`;
+    return `<img src="./logos/${file}.png" class="logo-inline" alt="${team} logo" onerror="this.onerror=null;this.src='./logos/placeholder.png';">`;
   }
 
   function updateDraftBoard() {
@@ -191,14 +117,17 @@
         const highlight = index === currentPickIndex ? 'style="background:#333"' : '';
         html += `<tr ${highlight}>
           <td>#${p.pick}</td>
-          <td>${getLogo(p.team)} ${p.team}</td>
-          <td>${p.player || "—"}</td>
+          <td>${getLogo(p.team)} ${p.team} ${p.traded ? '🔁' : ''}</td>
+          <td>
+            ${p.player || "—"}
+            ${p.traded ? '<span style="color:#fcb900"> (Traded)</span>' : ''}
+            ${p.trade_note ? `<br><small style="color:#aaa;">🔁 ${p.trade_note}</small>` : ''}
+          </td>
         </tr>`;
       });
       html += `</tbody></table>`;
       container.innerHTML += html;
     }
-
     scrollToCurrentPick();
   }
 
@@ -230,15 +159,16 @@
       document.getElementById("buzzer").play();
       const pick = picks[currentPickIndex];
       pick.player = "Auto-Pick";
+      pick.trade_note = "";
 
-      await supabase.from('draft_picks').insert([
-        {
-          pick: pick.pick,
-          round: pick.round,
-          team: pick.team,
-          player: "Auto-Pick"
-        }
-      ]);
+      await supabase.from('draft_picks').insert([{
+        pick: pick.pick,
+        round: pick.round,
+        team: pick.team,
+        player: pick.player,
+        traded: pick.traded,
+        trade_note: pick.trade_note
+      }]);
 
       currentPickIndex++;
       timeLeft = 120;
@@ -248,29 +178,40 @@
 
   async function submitPick() {
     const input = document.getElementById("playerInput");
+    const noteInput = document.getElementById("tradeNoteInput");
     const name = input.value.trim();
+    const note = noteInput.value.trim();
+
     if (!name || currentPickIndex >= picks.length) return;
 
     const pick = picks[currentPickIndex];
     pick.player = name;
+    pick.trade_note = note;
     input.value = "";
+    noteInput.value = "";
     timeLeft = 120;
     currentPickIndex++;
     updateDraftBoard();
 
-    const { error } = await supabase.from('draft_picks').insert([
-      {
-        pick: pick.pick,
-        round: pick.round,
-        team: pick.team,
-        player: name
-      }
-    ]);
+    const { error } = await supabase.from('draft_picks').insert([{
+      pick: pick.pick,
+      round: pick.round,
+      team: pick.team,
+      player: pick.player,
+      traded: pick.traded,
+      trade_note: pick.trade_note
+    }]);
 
     if (error) {
       console.error("Supabase insert error:", error);
       alert("Failed to save pick to Supabase");
     }
+  }
+
+  function toggleTraded() {
+    if (currentPickIndex >= picks.length) return;
+    picks[currentPickIndex].traded = !picks[currentPickIndex].traded;
+    updateDraftBoard();
   }
 
   function pauseDraft() {
@@ -310,11 +251,11 @@
   setInterval(updateClock, 1000);
   updateDraftBoard();
 
-  // Expose to window for HTML buttons
   window.submitPick = submitPick;
   window.pauseDraft = pauseDraft;
   window.resumeDraft = resumeDraft;
   window.startDraft = startDraft;
+  window.toggleTraded = toggleTraded;
 </script>
 
 </body>
