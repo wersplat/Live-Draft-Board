@@ -274,6 +274,11 @@
 
   setInterval(updateClock, 1000);
   updateDraftBoard();
+
+  // ✅ Attach to global window so HTML onclick works
+  window.submitPick = submitPick;
+  window.pauseDraft = pauseDraft;
+  window.resumeDraft = resumeDraft;
 </script>
 
 </body>
