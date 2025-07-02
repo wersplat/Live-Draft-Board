@@ -107,3 +107,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - UPA for organizing the Summer Championship
 - All participating teams and players
 - The open-source community for valuable tools and libraries
+
