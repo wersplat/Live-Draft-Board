@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>UPA Summer Championship – Live Draft Board</title>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #000;
+      color: #fff;
+      margin: 0;
+      padding: 0;
+      font-size: 20px;
+    }
+    header {
+      background: #B6094B;
+      padding: 1rem;
+      text-align: center;
+    }
+    .draft-container {
+      max-width: 1600px;
+      margin: auto;
+      padding: 2rem;
+    }
+    .on-the-clock {
+      background: #1E2132;
+      padding: 2rem;
+      border-radius: 20px;
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .on-the-clock h1 {
+      font-size: 2.5rem;
+      margin: 0.5rem 0;
+    }
+    .timer {
+      font-size: 3rem;
+      color: #F2F4F5;
+      margin-top: 0.5rem;
+    }
+    .logo-inline {
+      height: 40px;
+      vertical-align: middle;
+      margin-right: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      font-size: 1.4rem;
+    }
+    th, td {
+      padding: 1rem;
+      border: 1px solid #444;
+      text-align: left;
+    }
+    th {
+      background: #B6094B;
+    }
+    .round-header {
+      font-size: 1.8rem;
+      font-weight: bold;
+      margin: 2.5rem 0 1rem;
+      border-bottom: 3px solid #B6094B;
+      padding-bottom: 0.3rem;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 4rem;
+      font-size: 1rem;
+      color: #999;
+    }
+    .control-panel {
+      text-align: center;
+      margin-top: 1rem;
+    }
+    input[type="text"] {
+      padding: 0.5rem;
+      width: 50%;
+      font-size: 1.2rem;
+    }
+    button {
+      padding: 0.6rem 1.2rem;
+      margin-left: 0.5rem;
+      background-color: #B6094B;
+      border: none;
+      color: white;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #000;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🏀 UPA Summer Championship - Live Draft Board</h1>
+  <p>💰 $15,000 Prize Pool • 📅 Live Draft - July 18</p>
+</header>
+
+<div class="draft-container">
+  <div class="on-the-clock" id="clock-box">
+    <h2>🕐 On the Clock</h2>
+    <h1 id="currentTeam">TBD</h1>
+    <p id="currentPickInfo"></p>
+    <p class="timer" id="timer">2:00</p>
+  </div>
+
+  <div class="control-panel">
+    <input type="text" id="playerInput" placeholder="Enter drafted player name...">
+    <button onclick="submitPick()">Submit Pick</button>
+    <button onclick="pauseDraft()">Pause</button>
+    <button onclick="resumeDraft()">Resume</button>
+  </div>
+
+  <div id="roundTables"></div>
+</div>
+
+<div class="footer">
+  Powered by Unified Pro-Am • Road to $25K
+</div>
+
+<audio id="buzzer" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+  const supabase = createClient(
+    'https://suqhwtwfvpcyvcbnycsa.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1cWh3dHdmdnBjeXZjYm55Y3NhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0Mzk2MzAsImV4cCI6MjA2NzAxNTYzMH0.ROawOqve1AezL2Asi0MqcWy4GbISImG_CNbaXxNg2lo'
+  );
+
+  const baseTeams = [
+    "Liquid Pro Am", "On Site", "Zero Tolerance", "Bodega Cats",
+    "High Octane", "Lights Out", "Coatesville", "Before The Fame",
+    "Hitlist", "Achieve Greatness", "Nobody Plays Harder", "Team 12",
+    "Team 13", "Team 14", "Team 15", "Team 16",
+    "Team 17", "Team 18", "Team 19", "Team 20",
+    "Team 21", "Team 22", "Team 23", "Team 24",
+    "Team 25", "Team 26", "Team 27", "Team 28",
+    "Team 29", "Team 30", "Team 31", "Team 32"
+  ];
+
+  const picks = [];
+  const totalRounds = 6;
+  for (let round = 1; round <= totalRounds; round++) {
+    const order = round % 2 === 0 ? [...baseTeams].reverse() : [...baseTeams];
+    order.forEach(team => {
+      picks.push({ pick: picks.length + 1, round, team, player: "" });
+    });
+  }
+
+  let currentPickIndex = 0;
+  let timeLeft = 120;
+  let timerPaused = false;
+
+  function getLogo(team) {
+    const file = team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+    const src = `./logos/${file}.png`;
+    return `<img src="${src}" class="logo-inline" alt="${team} logo" onerror="this.onerror=null;this.src='./logos/placeholder.png';">`;
+  }
+
+  function updateDraftBoard() {
+    const container = document.getElementById("roundTables");
+    container.innerHTML = "";
+    for (let round = 1; round <= totalRounds; round++) {
+      const roundPicks = picks.filter(p => p.round === round);
+      let html = `<div class="round-header">Round ${round}</div>`;
+      html += `<table><thead><tr><th>Pick #</th><th>Team</th><th>Player Drafted</th></tr></thead><tbody>`;
+      roundPicks.forEach((p, idx) => {
+        const index = picks.findIndex(all => all.pick === p.pick);
+        const highlight = index === currentPickIndex ? 'style="background:#333"' : '';
+        html += `<tr ${highlight}>
+          <td>#${p.pick}</td>
+          <td>${getLogo(p.team)} ${p.team}</td>
+          <td>${p.player || "—"}</td>
+        </tr>`;
+      });
+      html += `</tbody></table>`;
+      container.innerHTML += html;
+    }
+
+    scrollToCurrentPick();
+  }
+
+  async function updateClock() {
+    if (timerPaused) return;
+    const timerDisplay = document.getElementById("timer");
+    const currentTeam = document.getElementById("currentTeam");
+    const pickInfo = document.getElementById("currentPickInfo");
+
+    if (currentPickIndex >= picks.length) {
+      currentTeam.innerText = "Draft Complete";
+      pickInfo.innerText = "";
+      timerDisplay.innerText = "—";
+      return;
+    }
+
+    const current = picks[currentPickIndex];
+    const pickInRound = picks.filter(p => p.round === current.round)
+                             .findIndex(p => p.pick === current.pick) + 1;
+
+    currentTeam.innerHTML = getLogo(current.team) + current.team;
+    pickInfo.innerText = `Round ${current.round}, Pick ${pickInRound}`;
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = String(timeLeft % 60).padStart(2, "0");
+    timerDisplay.innerText = `${minutes}:${seconds}`;
+    timeLeft--;
+
+    if (timeLeft < 0) {
+      document.getElementById("buzzer").play();
+      const pick = picks[currentPickIndex];
+      pick.player = "Auto-Pick";
+
+      await supabase.from('draft_picks').insert([
+        {
+          pick: pick.pick,
+          round: pick.round,
+          team: pick.team,
+          player: "Auto-Pick"
+        }
+      ]);
+
+      currentPickIndex++;
+      timeLeft = 120;
+      updateDraftBoard();
+    }
+  }
+
+  async function submitPick() {
+    const input = document.getElementById("playerInput");
+    const name = input.value.trim();
+    if (!name || currentPickIndex >= picks.length) return;
+
+    const pick = picks[currentPickIndex];
+    pick.player = name;
+    input.value = "";
+    timeLeft = 120;
+    currentPickIndex++;
+    updateDraftBoard();
+
+    const { error } = await supabase.from('draft_picks').insert([
+      {
+        pick: pick.pick,
+        round: pick.round,
+        team: pick.team,
+        player: name
+      }
+    ]);
+
+    if (error) {
+      console.error("Supabase insert error:", error);
+      alert("Failed to save pick to Supabase");
+    }
+  }
+
+  function pauseDraft() {
+    timerPaused = true;
+  }
+
+  function resumeDraft() {
+    timerPaused = false;
+  }
+
+  function scrollToCurrentPick() {
+    const rows = document.querySelectorAll("#roundTables tr");
+    if (rows[currentPickIndex]) {
+      rows[currentPickIndex].scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+
+  setInterval(updateClock, 1000);
+  updateDraftBoard();
+</script>
+
+</body>
+</html>

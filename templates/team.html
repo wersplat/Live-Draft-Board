@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>{{team}} – Draft Picks</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    body { font-family: sans-serif; background: #000; color: #fff; padding: 2rem; }
+    h1 { color: #B6094B; font-size: 2rem; }
+    ul { list-style-type: disc; padding-left: 2rem; font-size: 1.2rem; }
+    li { margin-bottom: 0.5rem; }
+    .logo { height: 60px; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <img class="logo" src="../logos/{{slug}}.png" onerror="this.src='../logos/placeholder.png'" alt="{{team}} Logo">
+  <h1>{{team}} – Draft Picks</h1>
+  <ul>
+    {{players}}
+  </ul>
+</body>
+</html>
