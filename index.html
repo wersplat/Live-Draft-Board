@@ -102,6 +102,7 @@
 
   function getLogo(team) {
     const file = team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+    console.warn('Looking for logo:', file);
     return `<img src="./logos/${file}.png" class="logo-inline" alt="${team} logo" onerror="this.onerror=null;this.src='./logos/placeholder.png';">`;
   }
 
