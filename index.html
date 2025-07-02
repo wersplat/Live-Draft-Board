@@ -82,7 +82,7 @@
     }
     button {
       padding: 0.6rem 1.2rem;
-      margin-left: 0.5rem;
+      margin: 0.5rem;
       background-color: #B6094B;
       border: none;
       color: white;
@@ -91,6 +91,19 @@
     }
     button:hover {
       background-color: #000;
+    }
+    #countdownOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.95);
+      color: #fff;
+      font-size: 6rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      transition: opacity 0.4s ease;
     }
   </style>
 </head>
@@ -104,12 +117,13 @@
 <div class="draft-container">
   <div class="on-the-clock" id="clock-box">
     <h2>🕐 On the Clock</h2>
-    <h1 id="currentTeam">TBD</h1>
+    <h1 id="currentTeam">Waiting to start...</h1>
     <p id="currentPickInfo"></p>
-    <p class="timer" id="timer">2:00</p>
+    <p class="timer" id="timer">—</p>
   </div>
 
   <div class="control-panel">
+    <button id="startButton" onclick="startDraft()">Start Draft</button>
     <input type="text" id="playerInput" placeholder="Enter drafted player name...">
     <button onclick="submitPick()">Submit Pick</button>
     <button onclick="pauseDraft()">Pause</button>
@@ -123,6 +137,7 @@
   Powered by Unified Pro-Am • Road to $25K
 </div>
 
+<div id="countdownOverlay" style="display:none;">3</div>
 <audio id="buzzer" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
 <script type="module">
@@ -156,6 +171,7 @@
   let currentPickIndex = 0;
   let timeLeft = 120;
   let timerPaused = false;
+  let draftStarted = false;
 
   function getLogo(team) {
     const file = team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
@@ -187,7 +203,7 @@
   }
 
   async function updateClock() {
-    if (timerPaused) return;
+    if (timerPaused || !draftStarted) return;
     const timerDisplay = document.getElementById("timer");
     const currentTeam = document.getElementById("currentTeam");
     const pickInfo = document.getElementById("currentPickInfo");
@@ -272,13 +288,33 @@
     }
   }
 
+  function startDraft() {
+    const overlay = document.getElementById('countdownOverlay');
+    let count = 3;
+    overlay.style.display = 'flex';
+    overlay.textContent = count;
+
+    const interval = setInterval(() => {
+      count--;
+      if (count === 0) {
+        clearInterval(interval);
+        overlay.style.display = 'none';
+        document.getElementById('startButton').style.display = 'none';
+        draftStarted = true;
+      } else {
+        overlay.textContent = count;
+      }
+    }, 1000);
+  }
+
   setInterval(updateClock, 1000);
   updateDraftBoard();
 
-  // ✅ Attach to global window so HTML onclick works
+  // Expose to window for HTML buttons
   window.submitPick = submitPick;
   window.pauseDraft = pauseDraft;
   window.resumeDraft = resumeDraft;
+  window.startDraft = startDraft;
 </script>
 
 </body>
