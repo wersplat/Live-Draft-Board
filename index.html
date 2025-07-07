@@ -189,20 +189,11 @@
 <script type="module">
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-  // Initialize Supabase with debug logging
+  // Initialize Supabase
   const supabase = createClient(
     'https://suqhwtwfvpcyvcbnycsa.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1cWh3dHdmdnBjeXZjYm55Y3NhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0Mzk2MzAsImV4cCI6MjA2NzAxNTYzMH0.ROawOqve1AezL2Asi0MqcWy4GbISImG_CNbaXxNg2lo',
-    {
-      auth: {
-        persistSession: false
-      }
-    }
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1cWh3dHdmdnBjeXZjYm55Y3NhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0Mzk2MzAsImV4cCI6MjA2NzAxNTYzMH0.ROawOqve1AezL2Asi0MqcWy4GbISImG_CNbaXxNg2lo'
   );
-  
-  // Enable debug logging
-  supabase.realtime.setLogLevel('debug');
-  console.log('Supabase client initialized');
 
   // Team data
   const baseTeams = [
@@ -249,33 +240,24 @@
   }
 
   // Update the draft board display
-  // Cache for tracking rendered picks
-  let renderedPicks = new Map();
-  
   function updateDraftBoard() {
     const container = document.getElementById("roundTables");
     if (!container) return;
     
-    // Create a document fragment to build our updates
-    const fragment = document.createDocumentFragment();
-    
-    // Create a temporary container to hold our new HTML
-    const tempDiv = document.createElement('div');
+    container.innerHTML = "";
     
     for (let round = 1; round <= totalRounds; round++) {
       const roundPicks = picks.filter(p => p.round === round);
-      let roundHtml = `<div class="round-header">Round ${round}</div>`;
-      roundHtml += `<table class="draft-round"><thead><tr><th>Pick #</th><th>Team</th><th>Player Drafted</th></tr></thead><tbody>`;
+      let html = `<div class="round-header">Round ${round}</div>`;
+      html += `<table><thead><tr><th>Pick #</th><th>Team</th><th>Player Drafted</th></tr></thead><tbody>`;
       
       roundPicks.forEach((p) => {
-        const isCurrentPick = picks.indexOf(p) === currentPickIndex;
-        const rowClass = isCurrentPick ? 'current-pick' : '';
-        const pickNumber = p.pick || '';
-        const pickId = p.id || `pick-${round}-${p.team}-${pickNumber}`;
+        const isCurrent = picks[currentPickIndex]?.pick === p.pick;
+        const highlight = isCurrent ? 'style="background: #333;"' : '';
         
-        roundHtml += `
-          <tr id="${pickId}" class="${rowClass}" data-pick-id="${pickId}">
-            <td>${pickNumber}</td>
+        html += `
+          <tr ${highlight}>
+            <td>#${p.pick}</td>
             <td>${getLogo(p.team)} ${p.team} ${p.traded ? '🔁' : ''}</td>
             <td>
               ${p.player || "—"}
@@ -286,50 +268,11 @@
         `;
       });
       
-      roundHtml += `</tbody></table>`;
-      tempDiv.innerHTML = roundHtml;
-      
-      // Check if we already have this round in the DOM
-      const existingRound = container.querySelector(`.draft-round[data-round="${round}"]`);
-      
-      if (existingRound) {
-        // Update existing round
-        const newRound = tempDiv.firstElementChild.nextElementSibling; // Get the table element
-        existingRound.parentNode.replaceChild(newRound, existingRound);
-      } else {
-        // Add new round
-        while (tempDiv.firstChild) {
-          fragment.appendChild(tempDiv.firstChild);
-        }
-      }
+      html += `</tbody></table>`;
+      container.innerHTML += html;
     }
     
-    // Only update the container if there are new rounds to add
-    if (fragment.hasChildNodes()) {
-      container.appendChild(fragment);
-    }
-    
-    // Update current pick highlighting
-    updateCurrentPickHighlight();
-    
-    // Scroll to current pick if needed
     scrollToCurrentPick();
-  }
-  
-  function updateCurrentPickHighlight() {
-    // Remove highlight from all picks
-    document.querySelectorAll('.current-pick').forEach(el => {
-      el.classList.remove('current-pick');
-    });
-    
-    // Add highlight to current pick
-    if (picks[currentPickIndex]) {
-      const currentPickId = picks[currentPickIndex].id || `pick-${picks[currentPickIndex].round}-${picks[currentPickIndex].team}-${picks[currentPickIndex].pick}`;
-      const currentPickRow = document.getElementById(currentPickId);
-      if (currentPickRow) {
-        currentPickRow.classList.add('current-pick');
-      }
-    }
   }
 
   // Get team logo
@@ -442,59 +385,21 @@
     }
     
     try {
-      console.log('Submitting pick to Supabase:', {
-        id: pick.id,
-        player: name,
-        pick: pick.pick,
-        round: pick.round,
-        team: pick.team,
-        event_id: eventId,
-        trade_note: note || null
-      });
-
-      // First try to insert the pick
-      const { data: insertData, error: insertError } = await supabase
+      // Update in Supabase
+      const { error } = await supabase
         .from('draft_picks')
-        .insert({
-          id: pick.id,
+        .update({
           selected_player_id: name,
           trade_note: note || null,
           pick: pick.pick,
           round: pick.round,
           team: pick.team,
           player: name,
-          event_id: eventId,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          event_id: eventId
         })
-        .select()
-        .single();
+        .eq('id', pick.id);
 
-      // If insert fails with duplicate key error, try update
-      if (insertError) {
-        console.log('Insert failed, trying update. Error:', insertError);
-        
-        const { data: updateData, error: updateError } = await supabase
-          .from('draft_picks')
-          .update({
-            selected_player_id: name,
-            trade_note: note || null,
-            player: name,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', pick.id)
-          .select()
-          .single();
-
-        if (updateError) {
-          console.error('Update also failed:', updateError);
-          throw updateError;
-        }
-        
-        console.log('Successfully updated pick:', updateData);
-      } else {
-        console.log('Successfully inserted pick:', insertData);
-      }
+      if (error) throw error;
 
       // Update local state
       pick.player = name;
