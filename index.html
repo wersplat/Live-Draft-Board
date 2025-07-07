@@ -101,6 +101,11 @@
   let draftStarted = false;
 
   function getLogo(team) {
+    // Handle numbered teams (team-12 through team-32)
+    if (/^team[\s-]?\d{1,2}$/i.test(team) || /^team-\d{1,2}$/i.test(team)) {
+      return `<img src="./logos/placeholder.png" class="logo-inline" alt="${team} logo">`;
+    }
+    
     const file = team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
     console.warn('Looking for logo:', file);
     return `<img src="./logos/${file}.png" class="logo-inline" alt="${team} logo" onerror="this.onerror=null;this.src='./logos/placeholder.png';">`;
