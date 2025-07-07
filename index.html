@@ -40,14 +40,24 @@
   </div>
 
   <div class="control-panel">
-    <button id="startButton" onclick="startDraft()">Start Draft</button><br>
-    <input type="text" id="playerInput" placeholder="Enter drafted player name...">
-    <input type="text" id="tradeNoteInput" placeholder="Trade note (optional)">
-    <br>
-    <button onclick="submitPick()">Submit Pick</button>
-    <button onclick="pauseDraft()">Pause</button>
-    <button onclick="resumeDraft()">Resume</button>
-    <button onclick="toggleTraded()">Toggle Traded</button>
+    <div class="controls">
+      <div>
+        <select id="eventSelector" class="event-selector">
+          <option value="1">UPA Summer Championship</option>
+          <option value="2">Other Event</option>
+          <!-- Add more events as needed -->
+        </select>
+        <input type="text" id="playerInput" placeholder="Enter drafted player name...">
+        <input type="text" id="tradeNoteInput" placeholder="Trade note (optional)">
+        <button onclick="submitPick()">Submit Pick</button>
+      </div>
+      <div>
+        <button onclick="startDraft()">Start Draft</button>
+        <button onclick="pauseDraft()">Pause</button>
+        <button onclick="resumeDraft()">Resume</button>
+        <button onclick="toggleTraded()">Toggle Traded</button>
+      </div>
+    </div>
   </div>
 
   <div id="roundTables"></div>
