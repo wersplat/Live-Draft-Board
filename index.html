@@ -249,24 +249,33 @@
   }
 
   // Update the draft board display
+  // Cache for tracking rendered picks
+  let renderedPicks = new Map();
+  
   function updateDraftBoard() {
     const container = document.getElementById("roundTables");
     if (!container) return;
     
-    container.innerHTML = "";
+    // Create a document fragment to build our updates
+    const fragment = document.createDocumentFragment();
+    
+    // Create a temporary container to hold our new HTML
+    const tempDiv = document.createElement('div');
     
     for (let round = 1; round <= totalRounds; round++) {
       const roundPicks = picks.filter(p => p.round === round);
-      let html = `<div class="round-header">Round ${round}</div>`;
-      html += `<table><thead><tr><th>Pick #</th><th>Team</th><th>Player Drafted</th></tr></thead><tbody>`;
+      let roundHtml = `<div class="round-header">Round ${round}</div>`;
+      roundHtml += `<table class="draft-round"><thead><tr><th>Pick #</th><th>Team</th><th>Player Drafted</th></tr></thead><tbody>`;
       
       roundPicks.forEach((p) => {
-        const isCurrent = picks[currentPickIndex]?.pick === p.pick;
-        const highlight = isCurrent ? 'style="background: #333;"' : '';
+        const isCurrentPick = picks.indexOf(p) === currentPickIndex;
+        const rowClass = isCurrentPick ? 'current-pick' : '';
+        const pickNumber = p.pick || '';
+        const pickId = p.id || `pick-${round}-${p.team}-${pickNumber}`;
         
-        html += `
-          <tr ${highlight}>
-            <td>#${p.pick}</td>
+        roundHtml += `
+          <tr id="${pickId}" class="${rowClass}" data-pick-id="${pickId}">
+            <td>${pickNumber}</td>
             <td>${getLogo(p.team)} ${p.team} ${p.traded ? '🔁' : ''}</td>
             <td>
               ${p.player || "—"}
@@ -277,11 +286,50 @@
         `;
       });
       
-      html += `</tbody></table>`;
-      container.innerHTML += html;
+      roundHtml += `</tbody></table>`;
+      tempDiv.innerHTML = roundHtml;
+      
+      // Check if we already have this round in the DOM
+      const existingRound = container.querySelector(`.draft-round[data-round="${round}"]`);
+      
+      if (existingRound) {
+        // Update existing round
+        const newRound = tempDiv.firstElementChild.nextElementSibling; // Get the table element
+        existingRound.parentNode.replaceChild(newRound, existingRound);
+      } else {
+        // Add new round
+        while (tempDiv.firstChild) {
+          fragment.appendChild(tempDiv.firstChild);
+        }
+      }
     }
     
+    // Only update the container if there are new rounds to add
+    if (fragment.hasChildNodes()) {
+      container.appendChild(fragment);
+    }
+    
+    // Update current pick highlighting
+    updateCurrentPickHighlight();
+    
+    // Scroll to current pick if needed
     scrollToCurrentPick();
+  }
+  
+  function updateCurrentPickHighlight() {
+    // Remove highlight from all picks
+    document.querySelectorAll('.current-pick').forEach(el => {
+      el.classList.remove('current-pick');
+    });
+    
+    // Add highlight to current pick
+    if (picks[currentPickIndex]) {
+      const currentPickId = picks[currentPickIndex].id || `pick-${picks[currentPickIndex].round}-${picks[currentPickIndex].team}-${picks[currentPickIndex].pick}`;
+      const currentPickRow = document.getElementById(currentPickId);
+      if (currentPickRow) {
+        currentPickRow.classList.add('current-pick');
+      }
+    }
   }
 
   // Get team logo
