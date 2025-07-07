@@ -22,6 +22,35 @@
     button { padding: 0.6rem 1.2rem; margin: 0.5rem; background-color: #B6094B; border: none; color: white; font-size: 1rem; cursor: pointer; }
     button:hover { background-color: #000; }
     #countdownOverlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.95); color: #fff; font-size: 6rem; font-weight: bold; display: flex; align-items: center; justify-content: center; z-index: 999; transition: opacity 0.4s ease; }
+    .event-selector {
+      padding: 8px 12px;
+      margin-right: 10px;
+      border: 1px solid #444;
+      border-radius: 4px;
+      background-color: #2d2d2d;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    
+    .event-selector:focus {
+      outline: none;
+      border-color: #646cff;
+      box-shadow: 0 0 0 2px rgba(100, 108, 255, 0.2);
+    }
+    
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .controls > div {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
   </style>
 </head>
 <body>
@@ -195,8 +224,11 @@
   async function submitPick() {
     const input = document.getElementById("playerInput");
     const noteInput = document.getElementById("tradeNoteInput");
+    const eventSelector = document.getElementById("eventSelector");
+    
     const name = input.value.trim();
     const note = noteInput.value.trim();
+    const eventId = parseInt(eventSelector.value, 10) || 1; // Default to 1 if parsing fails
 
     if (!name || currentPickIndex >= picks.length) return;
 
@@ -213,8 +245,7 @@
           round: pick.round,
           team: pick.team,
           player: name,
-          // Set a default event_id (you may want to make this configurable)
-          event_id: 1
+          event_id: eventId  // Use the selected event ID
         })
         .eq('id', pick.id);
 
@@ -222,8 +253,9 @@
 
       // Update local state
       pick.selected_player_id = name;
-      pick.player = name; // Also update the player field for the UI
+      pick.player = name;
       pick.trade_note = note;
+      pick.event_id = eventId;
       
       // Move to next pick
       input.value = "";
