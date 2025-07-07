@@ -189,11 +189,20 @@
 <script type="module">
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-  // Initialize Supabase
+  // Initialize Supabase with debug logging
   const supabase = createClient(
     'https://suqhwtwfvpcyvcbnycsa.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1cWh3dHdmdnBjeXZjYm55Y3NhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0Mzk2MzAsImV4cCI6MjA2NzAxNTYzMH0.ROawOqve1AezL2Asi0MqcWy4GbISImG_CNbaXxNg2lo'
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1cWh3dHdmdnBjeXZjYm55Y3NhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0Mzk2MzAsImV4cCI6MjA2NzAxNTYzMH0.ROawOqve1AezL2Asi0MqcWy4GbISImG_CNbaXxNg2lo',
+    {
+      auth: {
+        persistSession: false
+      }
+    }
   );
+  
+  // Enable debug logging
+  supabase.realtime.setLogLevel('debug');
+  console.log('Supabase client initialized');
 
   // Team data
   const baseTeams = [
@@ -385,21 +394,59 @@
     }
     
     try {
-      // Update in Supabase
-      const { error } = await supabase
+      console.log('Submitting pick to Supabase:', {
+        id: pick.id,
+        player: name,
+        pick: pick.pick,
+        round: pick.round,
+        team: pick.team,
+        event_id: eventId,
+        trade_note: note || null
+      });
+
+      // First try to insert the pick
+      const { data: insertData, error: insertError } = await supabase
         .from('draft_picks')
-        .update({
+        .insert({
+          id: pick.id,
           selected_player_id: name,
           trade_note: note || null,
           pick: pick.pick,
           round: pick.round,
           team: pick.team,
           player: name,
-          event_id: eventId
+          event_id: eventId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
-        .eq('id', pick.id);
+        .select()
+        .single();
 
-      if (error) throw error;
+      // If insert fails with duplicate key error, try update
+      if (insertError) {
+        console.log('Insert failed, trying update. Error:', insertError);
+        
+        const { data: updateData, error: updateError } = await supabase
+          .from('draft_picks')
+          .update({
+            selected_player_id: name,
+            trade_note: note || null,
+            player: name,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', pick.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Update also failed:', updateError);
+          throw updateError;
+        }
+        
+        console.log('Successfully updated pick:', updateData);
+      } else {
+        console.log('Successfully inserted pick:', insertData);
+      }
 
       // Update local state
       pick.player = name;
