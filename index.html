@@ -62,10 +62,8 @@
 
 <div class="draft-container">
   <div class="on-the-clock" id="clock-box">
-    <h2>🕐 On the Clock</h2>
-    <h1 id="currentTeam">Waiting to start...</h1>
-    <p id="currentPickInfo"></p>
-    <p class="timer" id="timer">—</p>
+    <h1>On the Clock: <span id="currentTeam">-</span></h1>
+    <div class="timer" id="timer">02:00</div>
   </div>
 
   <div class="control-panel">
@@ -96,7 +94,10 @@
   Powered by Unified Pro-Am • Road to $25K
 </div>
 
-<div id="countdownOverlay" style="display:none;">3</div>
+<div id="countdownOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); color: white; font-size: 10rem; display: flex; justify-content: center; align-items: center; z-index: 1000;">
+  3
+</div>
+
 <audio id="buzzer" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
 <script type="module">
@@ -198,48 +199,39 @@
     scrollToCurrentPick();
   }
 
-  async function updateClock() {
+  function updateClock() {
     if (timerPaused || !draftStarted) return;
-    const timerDisplay = document.getElementById("timer");
-    const currentTeam = document.getElementById("currentTeam");
-    const pickInfo = document.getElementById("currentPickInfo");
-
-    if (currentPickIndex >= picks.length) {
-      currentTeam.innerText = "Draft Complete";
-      pickInfo.innerText = "";
-      timerDisplay.innerText = "—";
+    
+    const timerDisplay = document.getElementById('timer');
+    const currentTeamDisplay = document.getElementById('currentTeam');
+    
+    if (!timerDisplay || !currentTeamDisplay) {
+      console.error("Timer elements not found");
       return;
     }
-
-    const current = picks[currentPickIndex];
-    const pickInRound = picks.filter(p => p.round === current.round)
-                             .findIndex(p => p.pick === current.pick) + 1;
-
-    currentTeam.innerHTML = getLogo(current.team) + current.team;
-    pickInfo.innerText = `Round ${current.round}, Pick ${pickInRound}`;
+    
     const minutes = Math.floor(timeLeft / 60);
-    const seconds = String(timeLeft % 60).padStart(2, "0");
-    timerDisplay.innerText = `${minutes}:${seconds}`;
-    timeLeft--;
-
-    if (timeLeft < 0) {
-      document.getElementById("buzzer").play();
-      const pick = picks[currentPickIndex];
-      pick.player = "Auto-Pick";
-      pick.trade_note = "";
-
-      await supabase.from('draft_picks').insert([{
-        pick: pick.pick,
-        round: pick.round,
-        team: pick.team,
-        player: pick.player,
-        traded: pick.traded,
-        trade_note: pick.trade_note
-      }]);
-
-      currentPickIndex++;
-      timeLeft = 120;
-      updateDraftBoard();
+    const seconds = timeLeft % 60;
+    timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    
+    if (timeLeft <= 0) {
+      // Time's up!
+      clearInterval(timerInterval);
+      document.getElementById('buzzer').play();
+      
+      // Move to next pick if available
+      if (currentPickIndex < picks.length - 1) {
+        currentPickIndex++;
+        const nextPick = picks[currentPickIndex];
+        if (nextPick) {
+          currentTeamDisplay.textContent = nextPick.team || `Team ${currentPickIndex + 1}`;
+          timeLeft = 120; // Reset timer for next pick
+          updateDraftBoard();
+          timerInterval = setInterval(updateClock, 1000);
+        }
+      }
+    } else {
+      timeLeft--;
     }
   }
 
@@ -319,11 +311,12 @@
   function startDraft() {
     const countdownOverlay = document.getElementById('countdownOverlay');
     const timerDisplay = document.getElementById('timer');
-    const startButton = document.getElementById('startButton');
+    const currentTeamDisplay = document.getElementById('currentTeam');
     
     // Check if all required elements exist
-    if (!countdownOverlay || !timerDisplay || !startButton) {
+    if (!countdownOverlay || !timerDisplay || !currentTeamDisplay) {
       console.error("Required elements not found in the DOM");
+      console.log("Missing elements:", {countdownOverlay, timerDisplay, currentTeamDisplay});
       return;
     }
     
@@ -347,14 +340,17 @@
         
         // Start the draft
         draftStarted = true;
-        startButton.style.display = 'none';
         
-        // Start the timer if timerDisplay exists
-        if (timerDisplay) {
-          timeLeft = 120;
-          updateClock(); // Initial update
-          timerInterval = setInterval(updateClock, 1000);
+        // Set the first team on the clock
+        if (picks.length > 0) {
+          currentTeamDisplay.textContent = picks[0].team || 'Team 1';
         }
+        
+        // Start the timer
+        timeLeft = 120;
+        updateClock(); // Initial update
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(updateClock, 1000);
       }
     }, 1000);
   }
