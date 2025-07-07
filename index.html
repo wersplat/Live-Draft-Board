@@ -111,87 +111,30 @@
     return `<img src="./logos/${file}.png" class="logo-inline" alt="${team} logo" onerror="this.onerror=null;this.src='./logos/placeholder.png';">`;
   }
 
-  async function updateDraftBoard() {
+  function updateDraftBoard() {
     const container = document.getElementById("roundTables");
     container.innerHTML = "";
-    
-    // Group picks by round
-    const picksByRound = {};
-    picks.forEach(pick => {
-      const round = pick.round_number;
-      if (!picksByRound[round]) {
-        picksByRound[round] = [];
-      }
-      picksByRound[round].push(pick);
-    });
-
-    // Create a table for each round
     for (let round = 1; round <= totalRounds; round++) {
-      const roundPicks = picksByRound[round] || [];
+      const roundPicks = picks.filter(p => p.round === round);
       let html = `<div class="round-header">Round ${round}</div>`;
-      html += `<table><tbody>`;
-      
-      roundPicks.forEach((p, index) => {
+      html += `<table><thead><tr><th>Pick #</th><th>Team</th><th>Player Drafted</th></tr></thead><tbody>`;
+      roundPicks.forEach((p, idx) => {
+        const index = picks.findIndex(all => all.pick === p.pick);
         const highlight = index === currentPickIndex ? 'style="background:#333"' : '';
-        // Get team name from team ID (you might need to adjust this based on your teams data)
-        const teamName = baseTeams.find(t => t.id === p.final_team_id)?.name || `Team ${p.final_team_id}`;
-        
         html += `<tr ${highlight}>
-          <td>#${p.overall_pick}</td>
-          <td>${getLogo(teamName)} ${teamName} ${p.traded ? '🔁' : ''}</td>
+          <td>#${p.pick}</td>
+          <td>${getLogo(p.team)} ${p.team} ${p.traded ? '🔁' : ''}</td>
           <td>
-            ${p.selected_player_id || "—"}
+            ${p.player || "—"}
             ${p.traded ? '<span style="color:#fcb900"> (Traded)</span>' : ''}
             ${p.trade_note ? `<br><small style="color:#aaa;">🔁 ${p.trade_note}</small>` : ''}
           </td>
         </tr>`;
       });
-      
       html += `</tbody></table>`;
       container.innerHTML += html;
     }
-    
     scrollToCurrentPick();
-  }
-
-  async function submitPick() {
-    const input = document.getElementById("playerInput");
-    const noteInput = document.getElementById("tradeNoteInput");
-    const name = input.value.trim();
-    const note = noteInput.value.trim();
-    
-    if (!name) return;
-    
-    const currentPick = picks[currentPickIndex];
-    if (!currentPick) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('draft_picks')
-        .update({ 
-          selected_player_id: name,
-          trade_note: note || null
-        })
-        .eq('id', currentPick.id);
-      
-      if (error) throw error;
-      
-      // Update local state
-      currentPick.selected_player_id = name;
-      currentPick.trade_note = note || null;
-      
-      // Move to next pick
-      currentPickIndex++;
-      updateDraftBoard();
-      
-      // Clear inputs
-      input.value = "";
-      noteInput.value = "";
-      
-    } catch (error) {
-      console.error("Error updating pick:", error);
-      alert("Error updating pick: " + error.message);
-    }
   }
 
   async function updateClock() {
@@ -236,6 +179,38 @@
       currentPickIndex++;
       timeLeft = 120;
       updateDraftBoard();
+    }
+  }
+
+  async function submitPick() {
+    const input = document.getElementById("playerInput");
+    const noteInput = document.getElementById("tradeNoteInput");
+    const name = input.value.trim();
+    const note = noteInput.value.trim();
+
+    if (!name || currentPickIndex >= picks.length) return;
+
+    const pick = picks[currentPickIndex];
+    pick.player = name;
+    pick.trade_note = note;
+    input.value = "";
+    noteInput.value = "";
+    timeLeft = 120;
+    currentPickIndex++;
+    updateDraftBoard();
+
+    const { error } = await supabase.from('draft_picks').insert([{
+      pick: pick.pick,
+      round: pick.round,
+      team: pick.team,
+      player: pick.player,
+      traded: pick.traded,
+      trade_note: pick.trade_note
+    }]);
+
+    if (error) {
+      console.error("Supabase insert error:", error);
+      alert("Failed to save pick to Supabase");
     }
   }
 
