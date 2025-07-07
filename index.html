@@ -191,26 +191,39 @@
     if (!name || currentPickIndex >= picks.length) return;
 
     const pick = picks[currentPickIndex];
-    pick.player = name;
-    pick.trade_note = note;
-    input.value = "";
-    noteInput.value = "";
-    timeLeft = 120;
-    currentPickIndex++;
-    updateDraftBoard();
+    
+    try {
+      const { error } = await supabase
+        .from('draft_picks')
+        .update({
+          selected_player_id: name,
+          trade_note: note || null,
+          // Map the new columns for backward compatibility
+          pick: pick.pick,
+          round: pick.round,
+          team: pick.team,
+          player: name,
+          // Set a default event_id (you may want to make this configurable)
+          event_id: 1
+        })
+        .eq('id', pick.id);
 
-    const { error } = await supabase.from('draft_picks').insert([{
-      pick: pick.pick,
-      round: pick.round,
-      team: pick.team,
-      player: pick.player,
-      traded: pick.traded,
-      trade_note: pick.trade_note
-    }]);
+      if (error) throw error;
 
-    if (error) {
-      console.error("Supabase insert error:", error);
-      alert("Failed to save pick to Supabase");
+      // Update local state
+      pick.selected_player_id = name;
+      pick.player = name; // Also update the player field for the UI
+      pick.trade_note = note;
+      
+      // Move to next pick
+      input.value = "";
+      noteInput.value = "";
+      currentPickIndex++;
+      updateDraftBoard();
+      
+    } catch (error) {
+      console.error("Error updating pick:", error);
+      alert("Failed to save pick: " + error.message);
     }
   }
 
