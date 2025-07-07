@@ -138,6 +138,7 @@
   let timeLeft = 120;
   let timerPaused = false;
   let draftStarted = false;
+  let timerInterval;
 
   // Define valid team logos that exist
   const validTeamLogos = new Set([
@@ -316,20 +317,44 @@
   }
 
   function startDraft() {
-    const overlay = document.getElementById('countdownOverlay');
+    const countdownOverlay = document.getElementById('countdownOverlay');
+    const timerDisplay = document.getElementById('timer');
+    const startButton = document.getElementById('startButton');
+    
+    // Check if all required elements exist
+    if (!countdownOverlay || !timerDisplay || !startButton) {
+      console.error("Required elements not found in the DOM");
+      return;
+    }
+    
+    // Show countdown overlay
+    countdownOverlay.style.display = 'flex';
+    countdownOverlay.style.opacity = '1';
+    
     let count = 3;
-    overlay.style.display = 'flex';
-    overlay.textContent = count;
-
-    const interval = setInterval(() => {
+    countdownOverlay.textContent = count;
+    
+    const countdown = setInterval(() => {
       count--;
-      if (count === 0) {
-        clearInterval(interval);
-        overlay.style.display = 'none';
-        document.getElementById('startButton').style.display = 'none';
-        draftStarted = true;
+      if (count > 0) {
+        countdownOverlay.textContent = count;
       } else {
-        overlay.textContent = count;
+        clearInterval(countdown);
+        countdownOverlay.style.opacity = '0';
+        setTimeout(() => {
+          countdownOverlay.style.display = 'none';
+        }, 400);
+        
+        // Start the draft
+        draftStarted = true;
+        startButton.style.display = 'none';
+        
+        // Start the timer if timerDisplay exists
+        if (timerDisplay) {
+          timeLeft = 120;
+          updateClock(); // Initial update
+          timerInterval = setInterval(updateClock, 1000);
+        }
       }
     }, 1000);
   }
