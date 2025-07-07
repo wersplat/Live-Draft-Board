@@ -88,7 +88,7 @@
         pick: picks.length + 1,
         round,
         team,
-        player: "",
+        selected_player_id: "",
         traded: false,
         trade_note: ""
       });
@@ -96,107 +96,75 @@
   }
 
   let currentPickIndex = 0;
-  let timeLeft = 120;
-  let timerPaused = false;
   let draftStarted = false;
+  let timerPaused = false;
 
   function getLogo(team) {
-    // Handle numbered teams (team-12 through team-32)
-    if (/^team[\s-]?\d{1,2}$/i.test(team) || /^team-\d{1,2}$/i.test(team)) {
-      return `<img src="./logos/placeholder.png" class="logo-inline" alt="${team} logo">`;
-    }
-
-    const file = team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
-    console.warn('Looking for logo:', file);
-    return `<img src="./logos/${file}.png" class="logo-inline" alt="${team} logo" onerror="this.onerror=null;this.src='./logos/placeholder.png';">`;
+    const normalized = team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+    return `<img src="./logos/${normalized}.png" class="logo-inline" alt="${team} logo" onerror="this.onerror=null;this.src='./logos/placeholder.png';">`;
   }
 
-  async function updateDraftBoard() {
+  function updateDraftBoard() {
     const container = document.getElementById("roundTables");
     container.innerHTML = "";
-    
-    // Group picks by round
-    const picksByRound = {};
-    picks.forEach(pick => {
-      const round = pick.round_number;
-      if (!picksByRound[round]) {
-        picksByRound[round] = [];
-      }
-      picksByRound[round].push(pick);
-    });
 
-    // Create a table for each round
     for (let round = 1; round <= totalRounds; round++) {
-      const roundPicks = picksByRound[round] || [];
-      let html = `<div class="round-header">Round ${round}</div>`;
-      html += `<table><tbody>`;
-      
+      const roundPicks = picks.filter(p => p.round === round);
+      let html = `<div class="round-header">Round ${round}</div><table><tbody>`;
       roundPicks.forEach((p, index) => {
-        const highlight = index === currentPickIndex ? 'style="background:#333"' : '';
-        // Get team name from team ID (you might need to adjust this based on your teams data)
-        const teamName = baseTeams.find(t => t.id === p.final_team_id)?.name || `Team ${p.final_team_id}`;
-        
-        html += `<tr ${highlight}>
-          <td>#${p.overall_pick}</td>
-          <td>${getLogo(teamName)} ${teamName} ${p.traded ? '🔁' : ''}</td>
-          <td>
-            ${p.selected_player_id || "—"}
-            ${p.traded ? '<span style="color:#fcb900"> (Traded)</span>' : ''}
-            ${p.trade_note ? `<br><small style="color:#aaa;">🔁 ${p.trade_note}</small>` : ''}
-          </td>
+        const isCurrent = picks[currentPickIndex] === p;
+        html += `<tr ${isCurrent ? 'style="background:#333"' : ''}>
+          <td>#${p.pick}</td>
+          <td>${getLogo(p.team)} ${p.team} ${p.traded ? '🔁' : ''}</td>
+          <td>${p.selected_player_id || "—"} ${p.traded ? '<span style="color:#fcb900"> (Traded)</span>' : ''} ${p.trade_note ? `<br><small style="color:#aaa;">🔁 ${p.trade_note}</small>` : ''}</td>
         </tr>`;
       });
-      
       html += `</tbody></table>`;
       container.innerHTML += html;
     }
-    
-    scrollToCurrentPick();
   }
 
-  async function submitPick() {
+  function submitPick() {
     const input = document.getElementById("playerInput");
     const noteInput = document.getElementById("tradeNoteInput");
     const name = input.value.trim();
     const note = noteInput.value.trim();
-    
     if (!name) return;
-    
+
     const currentPick = picks[currentPickIndex];
-    if (!currentPick) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('draft_picks')
-        .update({ 
-          selected_player_id: name,
-          trade_note: note || null
-        })
-        .eq('id', currentPick.id);
-      
-      if (error) throw error;
-      
-      // Update local state
-      currentPick.selected_player_id = name;
-      currentPick.trade_note = note || null;
-      
-      // Move to next pick
-      currentPickIndex++;
+    currentPick.selected_player_id = name;
+    currentPick.trade_note = note || null;
+    currentPickIndex++;
+    input.value = "";
+    noteInput.value = "";
+    updateDraftBoard();
+  }
+
+  function startDraft() {
+    draftStarted = true;
+    updateDraftBoard();
+    document.getElementById("currentTeam").textContent = picks[currentPickIndex]?.team || "Draft Complete";
+    document.getElementById("timer").textContent = "2:00";
+  }
+
+  function pauseDraft() {
+    timerPaused = true;
+  }
+
+  function resumeDraft() {
+    timerPaused = false;
+  }
+
+  function toggleTraded() {
+    const pick = picks[currentPickIndex];
+    if (pick) {
+      pick.traded = !pick.traded;
       updateDraftBoard();
-      
-      // Clear inputs
-      input.value = "";
-      noteInput.value = "";
-      
-    } catch (error) {
-      console.error("Error updating pick:", error);
-      alert("Error updating pick: " + error.message);
     }
   }
 
-  async function updateClock() {
-    if (timerPaused || !draftStarted) return;
-    const timerDisplay = document.getElementById("timer");
-@@ -239,6 +182,38 @@
-    }
-  }
+  updateDraftBoard();
+</script>
+
+</body>
+</html>
