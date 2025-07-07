@@ -139,6 +139,21 @@
   let timerPaused = false;
   let draftStarted = false;
 
+  // Define valid team logos that exist
+  const validTeamLogos = new Set([
+    'liquid-pro-am',
+    'on-site',
+    'zero-tolerance',
+    'bodega-cats',
+    'high-octane',
+    'lights-out',
+    'coatesville',
+    'before-the-fame',
+    'hitlist',
+    'achieve-greatness',
+    'nobody-plays-harder'
+  ]);
+
   function getLogo(team) {
     // Handle numbered teams (team-12 through team-32)
     if (/^team[\s-]?\d{1,2}$/i.test(team) || /^team-\d{1,2}$/i.test(team)) {
@@ -146,8 +161,14 @@
     }
     
     const file = team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
-    console.warn('Looking for logo:', file);
-    return `<img src="./logos/${file}.png" class="logo-inline" alt="${team} logo" onerror="this.onerror=null;this.src='./logos/placeholder.png';">`;
+    
+    // Only log if we're not using the placeholder
+    if (validTeamLogos.has(file)) {
+      return `<img src="./logos/${file}.png" class="logo-inline" alt="${team} logo">`;
+    }
+    
+    // Use placeholder for all other teams
+    return `<img src="./logos/placeholder.png" class="logo-inline" alt="${team} logo">`;
   }
 
   function updateDraftBoard() {
@@ -228,11 +249,16 @@
     
     const name = input.value.trim();
     const note = noteInput.value.trim();
-    const eventId = parseInt(eventSelector.value, 10) || 1; // Default to 1 if parsing fails
+    const eventId = parseInt(eventSelector.value, 10) || 1;
 
     if (!name || currentPickIndex >= picks.length) return;
 
     const pick = picks[currentPickIndex];
+    if (!pick || !pick.id) {
+      console.error("Invalid pick or missing ID:", pick);
+      alert("Error: Could not find pick data. Please refresh the page and try again.");
+      return;
+    }
     
     try {
       const { error } = await supabase
@@ -240,12 +266,11 @@
         .update({
           selected_player_id: name,
           trade_note: note || null,
-          // Map the new columns for backward compatibility
           pick: pick.pick,
           round: pick.round,
           team: pick.team,
           player: name,
-          event_id: eventId  // Use the selected event ID
+          event_id: eventId
         })
         .eq('id', pick.id);
 
@@ -265,7 +290,7 @@
       
     } catch (error) {
       console.error("Error updating pick:", error);
-      alert("Failed to save pick: " + error.message);
+      alert("Failed to save pick: " + (error.message || 'Unknown error'));
     }
   }
 
