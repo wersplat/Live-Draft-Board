@@ -10,7 +10,7 @@ async function loadConfig() {
 
 const config = await loadConfig();
 // Initialize Supabase with your project URL and anon key
-const supabase = window.supabase.createClient(process.env.SUPABASE_URL || 'your-supabase-url', process.env.SUPABASE_ANON_KEY || 'your-anon-key');
+const supabase = window.supabase.createClient(process.env.SUPABASE_URL || 'https://suqhwtwfvpcyvcbnycsa.supabase.co', process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1cWh3dHdmdnBjeXZjYm55Y3NhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0Mzk2MzAsImV4cCI6MjA2NzAxNTYzMH0.ROawOqve1AezL2Asi0MqcWy4GbISImG_CNbaXxNg2lo');
 
 let currentPick = 1;
 let timerInterval;
