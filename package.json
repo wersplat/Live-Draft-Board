@@ -1,15 +1,16 @@
 {
   "dependencies": {
-    "@supabase/supabase-js": "^2.50.2"
+    "@supabase/supabase-js": "^2.50.5",
+    "dotenv": "^17.2.0"
   },
   "type": "module",
   "name": "live-draft-board",
   "version": "1.0.0",
   "description": "A real-time draft board application for the UPA Summer Championship basketball event, featuring a $15,000 prize pool. This interactive tool allows administrators to manage the draft process in real-time while providing an engaging experience for participants and viewers.",
   "main": "generate-team-pages.js",
-  "devDependencies": {},
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "node generate-team-pages.js"
   },
   "repository": {
     "type": "git",

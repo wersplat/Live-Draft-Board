@@ -2,100 +2,108 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
 
+dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Supabase config
-const supabase = createClient(
-  'https://suqhwtwfvpcyvcbnycsa.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1cWh3dHdmdnBjeXZjYm55Y3NhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0Mzk2MzAsImV4cCI6MjA2NzAxNTYzMH0.ROawOqve1AezL2Asi0MqcWy4GbISImG_CNbaXxNg2lo'
-);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
-// Fetch all picks
-const { data: picks, error } = await supabase
-  .from('draft_picks')
-  .select('*')
-  .order('pick');
-
-if (error) throw error;
-
-// Group picks by team_slug
-const teams = {};
-for (const pick of picks) {
-  const slug = pick.team_slug || pick.team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
-  if (!teams[slug]) {
-    teams[slug] = { name: pick.team, picks: [] };
-  }
-  teams[slug].picks.push(pick);
+async function loadConfig() {
+  const configPath = path.join(__dirname, 'config.json');
+  const raw = await fs.readFile(configPath, 'utf-8');
+  return JSON.parse(raw);
 }
 
-// Load HTML template
-const templatePath = path.join(__dirname, 'templates/team.html');
-const template = await fs.readFile(templatePath, 'utf-8');
+async function main() {
+  try {
+    const config = await loadConfig();
+    const { data: picks, error } = await supabase.from('draft_picks').select('*').order('pick');
+    if (error) throw error;
 
-// Create output dir if missing
-const outputDir = path.join(__dirname, 'teams');
-await fs.mkdir(outputDir, { recursive: true });
+    const teams = {};
+    for (const pick of picks) {
+      const slug = pick.team_slug || pick.team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+      if (!teams[slug]) teams[slug] = { name: pick.team, picks: [] };
+      teams[slug].picks.push(pick);
+    }
 
-// Generate each team page
-for (const [slug, teamData] of Object.entries(teams)) {
-  const listHTML = teamData.picks.map(p =>
-    `<li>Round ${p.round}, Pick #${p.pick}: ${p.player}</li>`
-  ).join('\n    ');
+    const templatePath = path.join(__dirname, 'templates/team.html');
+    const template = await fs.readFile(templatePath, 'utf-8');
 
-  const html = template
-    .replace(/{{team}}/g, teamData.name)
-    .replace(/{{players}}/g, listHTML)
-    .replace(/{{slug}}/g, slug);
+    const outputDir = path.join(__dirname, 'teams');
+    await fs.mkdir(outputDir, { recursive: true });
 
-  const filePath = path.join(outputDir, `${slug}.html`);
-  await fs.writeFile(filePath, html);
-  console.log(`✅ Created: teams/${slug}.html`);
-}
+    for (const [slug, teamData] of Object.entries(teams)) {
+      const listHTML = teamData.picks.map(p => `
+        <li>Round ${p.round}, Pick #${p.pick}: ${p.player}${p.notes ? ` (${p.notes})` : ''}${p.traded ? ' (Traded)' : ''}</li>
+      `).join('');
 
-// Generate search index page
-const indexHTML = `
+      let logoHTML = '';
+      const logoPath = path.join(__dirname, 'logos', `${slug}.png`);
+      try {
+        await fs.access(logoPath);
+        logoHTML = `<img class="logo" src="../logos/${slug}.png" alt="${teamData.name} logo">`;
+      } catch {}
+
+      let html = template
+        .replace(/{{eventTitle}}/g, config.eventTitle)
+        .replace('{{team}}', teamData.name)
+        .replace('{{players}}', listHTML)
+        .replace('{{logo}}', logoHTML);
+
+      const filePath = path.join(outputDir, `${slug}.html`);
+      await fs.writeFile(filePath, html);
+      console.log(`✅ Created: teams/${slug}.html`);
+    }
+
+    const sortedSlugs = Object.keys(teams).sort();
+    const linksHTML = sortedSlugs.map(slug => `<li><a href="${slug}.html">${teams[slug].name}</a></li>`).join('\n');
+
+    const searchScript = `
+      <input id="search" type="text" placeholder="Search teams..." aria-label="Search teams">
+      <script>
+        document.getElementById('search').addEventListener('input', e => {
+          const term = e.target.value.toLowerCase();
+          document.querySelectorAll('#team-list li').forEach(li => {
+            li.style.display = li.textContent.toLowerCase().includes(term) ? 'list-item' : 'none';
+          });
+        });
+      </script>
+    `;
+
+    let prizesHTML = '';
+    if (config.prizeBreakdown && config.prizeBreakdown.length > 0) {
+      prizesHTML = '<h3>Prize Breakdown</h3><ul>' + config.prizeBreakdown.map(p => `<li>${p.place}st Place: ${config.currency} ${p.amount}</li>`).join('') + '</ul>';
+    }
+
+    const rulesLink = config.rulesUrl ? `<p><a href="${config.rulesUrl}">Event Rules</a></p>` : '';
+
+    const indexHTML = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>All Draft Teams</title>
-  <style>
-    body { background: #000; color: #fff; font-family: sans-serif; padding: 2rem; }
-    h1 { color: #B6094B; font-size: 2rem; margin-bottom: 1rem; }
-    input { width: 100%; padding: 0.6rem; font-size: 1rem; margin-bottom: 1rem; }
-    ul { list-style: none; padding: 0; font-size: 1.2rem; }
-    li { margin-bottom: 0.5rem; }
-    a { color: #fff; text-decoration: none; }
-    a:hover { color: #B6094B; }
-  </style>
+  <title>All Teams - ${config.eventTitle}</title>
+  <style>body { font-family: Arial, sans-serif; padding: 20px; } ul { list-style: none; }</style>
 </head>
 <body>
-  <h1>All UPA Draft Teams</h1>
-  <input type="text" id="search" placeholder="Search team name..." />
-
+  <h1>All Draft Teams - ${config.eventTitle}</h1>
+  ${rulesLink}
+  ${prizesHTML}
+  ${searchScript}
   <ul id="team-list">
-    ${Object.entries(teams).map(([slug, team]) => {
-      return `<li><a href="./${slug}.html">${team.name}</a></li>`;
-    }).join('\n    ')}
+    ${linksHTML}
   </ul>
-
-  <script>
-    const input = document.getElementById('search');
-    const list = document.getElementById('team-list');
-    const items = [...list.querySelectorAll('li')];
-
-    input.addEventListener('input', () => {
-      const val = input.value.toLowerCase();
-      items.forEach(li => {
-        li.style.display = li.textContent.toLowerCase().includes(val) ? '' : 'none';
-      });
-    });
-  </script>
 </body>
 </html>
-`;
+    `;
 
-await fs.writeFile(path.join(outputDir, 'index.html'), indexHTML);
-console.log(`✅ Created: teams/index.html with live search`);
+    await fs.writeFile(path.join(outputDir, 'index.html'), indexHTML);
+    console.log(`✅ Created: teams/index.html with live search`);
+  } catch (err) {
+    console.error('Error generating pages:', err);
+    process.exit(1);
+  }
+}
+
+main();

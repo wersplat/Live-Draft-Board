@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>UPA Summer Championship – Live Draft Board</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏀 Live Draft Board</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { 
       font-family: 'Inter', sans-serif; 
@@ -143,324 +144,309 @@
       justify-content: center;
       flex-wrap: wrap;
     }
+    /* Merged previous styles for compatibility */
+    :root { --theme-color: #B6094B; } /* Adjusted to match primary color */
+    h1 { color: var(--theme-color); }
+    .timer { color: var(--theme-color); } /* Override to use theme */
+    .traded { background-color: #333; } /* Dark mode adjustment */
+    #auth-section { margin-bottom: 20px; }
+    #prizes { margin: 20px 0; }
+    .round-order {
+      font-size: 1.2rem;
+      margin-top: 1rem;
+      color: #ccc;
+    }
+    .round-order span.current {
+      font-weight: bold;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
+  <header>
+    <h1 id="event-header">🏀 Loading... - Live Draft Board</h1>
+    <p id="event-info">Loading...</p>
+    <div id="prizes"></div>
+  </header>
 
-<header>
-  <h1>🏀 UPA Summer Championship - Live Draft Board</h1>
-  <p>💰 $15,000 Prize Pool • 📅 Live Draft - July 18</p>
-</header>
+  <div class="draft-container">
+    <div id="auth-section" class="control-panel">
+      <input id="email" type="email" placeholder="Admin Email" aria-label="Admin Email">
+      <input id="password" type="password" placeholder="Password" aria-label="Admin Password">
+      <button id="login">Login</button>
+      <button id="logout" style="display:none;">Logout</button>
+      <p id="auth-status"></p>
+    </div>
 
-<div class="draft-container">
-  <div class="on-the-clock" id="clock-box">
-    <h1>On the Clock: <span id="currentTeam">-</span></h1>
-    <div class="timer" id="timer">02:00</div>
-  </div>
+    <div class="on-the-clock">
+      <div id="current-team">On the Clock: -</div>
+      <div id="timer" class="timer" aria-live="polite">02:00</div>
+      <div id="round-order" class="round-order"></div>
+    </div>
 
-  <div class="control-panel">
-    <div class="controls">
+    <div class="controls" id="admin-controls" style="display:none;">
       <div>
-        <select id="eventSelector" class="event-selector">
-          <option value="1">UPA Summer Championship</option>
-          <option value="2">Other Event</option>
-        </select>
-        <input type="text" id="playerInput" placeholder="Enter drafted player name...">
-        <input type="text" id="tradeNoteInput" placeholder="Trade note (optional)">
-        <button onclick="submitPick()">Submit Pick</button>
+        <button id="start">Start Draft</button>
+        <button id="pause" disabled>Pause</button>
+        <button id="resume" disabled>Resume</button>
       </div>
       <div>
-        <button id="startButton" onclick="startDraft()">Start Draft</button>
-        <button onclick="pauseDraft()">Pause</button>
-        <button onclick="resumeDraft()">Resume</button>
-        <button onclick="toggleTraded()">Toggle Traded</button>
+        <input id="player" type="text" placeholder="Player Name" aria-label="Player Name">
+        <input id="notes" type="text" placeholder="Trade Notes (optional)" aria-label="Trade Notes">
+      </div>
+      <div>
+        <button id="submit" disabled>Submit Pick</button>
+        <button id="undo" disabled>Undo Last Pick</button>
       </div>
     </div>
+
+    <div id="picks-container"></div> <!-- Picks will be grouped by round here -->
+
+    <div id="countdownOverlay"></div>
   </div>
 
-  <div id="roundTables"></div>
-</div>
+  <div class="footer">Live Draft Board © 2025</div>
 
-<div class="footer">Powered by Unified Pro-Am • Road to $25K</div>
+  <script>
+    const supabase = Supabase.createClient('https://your-supabase-url.supabase.co', 'your-anon-key'); // Replace with actual
 
-<div id="countdownOverlay">3</div>
-<audio id="buzzer" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+    let config;
+    let playerPool = [];
+    async function loadConfig() {
+      try {
+        const response = await fetch('config.json');
+        if (!response.ok) throw new Error('Config not found');
+        config = await response.json();
+        document.title = `🏀 ${config.eventTitle} - Live Draft Board`;
+        document.getElementById('event-header').textContent = `🏀 ${config.eventTitle} - Live Draft Board`;
+        const formattedDate = new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeZone: config.timezone }).format(new Date(config.draftDate));
+        const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: config.currency });
+        document.getElementById('event-info').textContent = `💰 ${formatter.format(config.prizePool)} Prize Pool • 📅 Draft: ${formattedDate}`;
+        document.body.style.setProperty('--theme-color', config.themeColor);
 
-<script type="module">
-  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+        // Display prize breakdown
+        const prizesDiv = document.getElementById('prizes');
+        if (config.prizeBreakdown && config.prizeBreakdown.length > 0) {
+          prizesDiv.innerHTML = '<h3>Prize Breakdown</h3><ul>' + config.prizeBreakdown.map(p => `<li>${p.place}st Place: ${formatter.format(p.amount)}</li>`).join('') + '</ul>';
+        }
 
-  // Initialize Supabase
-  const supabase = createClient(
-    'https://suqhwtwfvpcyvcbnycsa.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1cWh3dHdmdnBjeXZjYm55Y3NhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0Mzk2MzAsImV4cCI6MjA2NzAxNTYzMH0.ROawOqve1AezL2Asi0MqcWy4GbISImG_CNbaXxNg2lo'
-  );
+        // Load player pool if file specified
+        if (config.playerPoolFile) {
+          const poolResponse = await fetch(config.playerPoolFile);
+          if (poolResponse.ok) playerPool = await poolResponse.json();
+        }
+      } catch (e) {
+        console.error('Failed to load config:', e);
+        alert('Error loading configuration. Using defaults.');
+        config = { eventTitle: 'Event', numTeams: 16, numRounds: 6, pickTimeSeconds: 120, teams: [], prizePool: 0, draftDate: 'TBD', draftType: 'snake', customDraftOrder: null, picksPerTeam: 6, autoSkipOnTimeout: true, currency: 'USD', timezone: 'UTC', rulesUrl: '', playerPoolFile: '', themeColor: '#B6094B', prizeBreakdown: [] };
+      }
+    }
+    await loadConfig();
 
-  // Team data
-  const baseTeams = [
-    "Liquid Pro Am", "On Site", "Zero Tolerance", "Bodega Cats",
-    "High Octane", "Lights Out", "Coatesville", "Before The Fame",
-    "Hitlist", "Achieve Greatness", "Nobody Plays Harder", "Team 12",
-    "Team 13", "Team 14", "Team 15", "Team 16",
-    "Team 17", "Team 18", "Team 19", "Team 20",
-    "Team 21", "Team 22", "Team 23", "Team 24",
-    "Team 25", "Team 26", "Team 27", "Team 28",
-    "Team 29", "Team 30", "Team 31", "Team 32"
-  ];
+    let isAdmin = false;
+    let currentPick = 1;
+    let currentTeam = '';
+    let timerInterval;
+    let timeLeft = config.pickTimeSeconds;
+    let isPaused = false;
+    let draftStarted = false;
 
-  // Initialize draft data
-  const picks = [];
-  const totalRounds = 6;
-  let currentPickIndex = 0;
-  let timeLeft = 120;
-  let timerPaused = false;
-  let draftStarted = false;
-  let timerInterval;
-  let syntheticId = 1;
+    // Generate or use custom draft order
+    let draftOrder = config.customDraftOrder || [];
+    if (!draftOrder.length) {
+      for (let round = 1; round <= config.numRounds; round++) {
+        let roundOrder = [...config.teams];
+        if (config.draftType === 'snake' && round % 2 === 0) roundOrder.reverse();
+        draftOrder.push(...roundOrder);
+      }
+    }
 
-  // Generate draft order
-  for (let round = 1; round <= totalRounds; round++) {
-    const order = round % 2 === 0 ? [...baseTeams].reverse() : [...baseTeams];
-    order.forEach(team => {
-      picks.push({
-        id: syntheticId++,
-        pick: picks.length + 1,
-        round,
-        team,
-        player: "",
-        traded: false,
-        trade_note: ""
+    const audioAlert = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAHAAoADADAAgAA'); // Placeholder beep
+
+    document.getElementById('login').onclick = async () => {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      try {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        isAdmin = true;
+        document.getElementById('auth-status').textContent = 'Logged in as admin';
+        document.getElementById('admin-controls').style.display = 'flex';
+        document.getElementById('logout').style.display = 'inline';
+        document.getElementById('login').disabled = true;
+      } catch (e) {
+        alert('Login failed: ' + e.message);
+      }
+    };
+    document.getElementById('logout').onclick = async () => {
+      await supabase.auth.signOut();
+      isAdmin = false;
+      location.reload();
+    };
+
+    async function loadPicks() {
+      const { data, error } = await supabase.from('draft_picks').select('*').order('pick');
+      if (error) console.error(error);
+      const container = document.getElementById('picks-container');
+      container.innerHTML = '';
+      if (data.length === 0) return;
+
+      let currentRound = 1;
+      let table = createRoundTable(currentRound);
+      data.forEach(pick => {
+        if (pick.round > currentRound) {
+          container.appendChild(table);
+          currentRound = pick.round;
+          table = createRoundTable(currentRound);
+        }
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>${pick.pick}</td><td>${pick.round}</td><td>${pick.team}</td><td>${pick.player}</td><td>${pick.notes || ''}</td><td>${pick.traded ? 'Yes' : 'No'}</td><td>${isAdmin ? '<button onclick="toggleTrade(\'' + pick.id + '\')">Toggle Traded</button>' : ''}</td>`;
+        if (pick.traded) row.classList.add('traded');
+        table.querySelector('tbody').appendChild(row);
       });
-    });
-  }
-
-  // Initialize the draft board
-  function initializeDraft() {
-    updateDraftBoard();
-    document.getElementById('currentTeam').textContent = picks[0]?.team || 'Team 1';
-  }
-
-  // Update the draft board display
-  function updateDraftBoard() {
-    const container = document.getElementById("roundTables");
-    if (!container) return;
-    
-    container.innerHTML = "";
-    
-    for (let round = 1; round <= totalRounds; round++) {
-      const roundPicks = picks.filter(p => p.round === round);
-      let html = `<div class="round-header">Round ${round}</div>`;
-      html += `<table><thead><tr><th>Pick #</th><th>Team</th><th>Player Drafted</th></tr></thead><tbody>`;
-      
-      roundPicks.forEach((p) => {
-        const isCurrent = picks[currentPickIndex]?.pick === p.pick;
-        const highlight = isCurrent ? 'style="background: #333;"' : '';
-        
-        html += `
-          <tr ${highlight}>
-            <td>#${p.pick}</td>
-            <td>${getLogo(p.team)} ${p.team} ${p.traded ? '🔁' : ''}</td>
-            <td>
-              ${p.player || "—"}
-              ${p.traded ? '<span style="color:#fcb900"> (Traded)</span>' : ''}
-              ${p.trade_note ? `<br><small style="color:#aaa;">🔁 ${p.trade_note}</small>` : ''}
-            </td>
-          </tr>
-        `;
-      });
-      
-      html += `</tbody></table>`;
-      container.innerHTML += html;
+      container.appendChild(table);
+      currentPick = data.length + 1;
+      updateUI();
     }
-    
-    scrollToCurrentPick();
-  }
 
-  // Get team logo
-  function getLogo(team) {
-    // Handle numbered teams
-    if (/^team\s*\d+$/i.test(team)) {
-      return `<img src="./logos/placeholder.png" class="logo-inline" alt="${team} logo">`;
+    function createRoundTable(round) {
+      const div = document.createElement('div');
+      div.innerHTML = `<div class="round-header">Round ${round}</div>`;
+      const table = document.createElement('table');
+      table.innerHTML = '<thead><tr><th>Pick</th><th>Round</th><th>Team</th><th>Player</th><th>Notes</th><th>Traded</th><th>Actions</th></tr></thead><tbody></tbody>';
+      div.appendChild(table);
+      return div;
     }
-    
-    const file = team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    return `<img src="./logos/${file}.png" class="logo-inline" alt="${team} logo" onerror="this.onerror=null; this.src='./logos/placeholder.png'">`;
-  }
 
-  // Scroll to current pick
-  function scrollToCurrentPick() {
-    const rows = document.querySelectorAll("#roundTables tr");
-    if (rows[currentPickIndex]) {
-      rows[currentPickIndex].scrollIntoView({ behavior: "smooth", block: "center" });
+    supabase.channel('draft_picks')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'draft_picks' }, () => loadPicks())
+      .subscribe();
+
+    loadPicks();
+
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        if (!isPaused) {
+          timeLeft--;
+          if (timeLeft <= 10) audioAlert.play();
+          if (timeLeft <= 5) {
+            document.getElementById('countdownOverlay').textContent = timeLeft;
+            document.getElementById('countdownOverlay').classList.add('visible');
+          } else {
+            document.getElementById('countdownOverlay').classList.remove('visible');
+          }
+          if (timeLeft <= 0) {
+            document.getElementById('countdownOverlay').classList.remove('visible');
+            if (config.autoSkipOnTimeout) {
+              submitPick('Auto-Skipped', 'Time expired');
+            } else {
+              alert('Time up for ' + currentTeam + '! Extend or skip manually.');
+            }
+          }
+          updateTimerUI();
+        }
+      }, 1000);
     }
-  }
 
-  // Start the draft with countdown
-  function startDraft() {
-    const countdownOverlay = document.getElementById('countdownOverlay');
-    const startButton = document.getElementById('startButton');
-    
-    if (!countdownOverlay) return;
-    
-    // Show countdown overlay
-    countdownOverlay.textContent = '3';
-    countdownOverlay.classList.add('visible');
-    startButton.disabled = true;
-    
-    let count = 3;
-    const countdownInterval = setInterval(() => {
-      count--;
-      
-      if (count > 0) {
-        countdownOverlay.textContent = count;
+    function updateTimerUI() {
+      const mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+      const secs = (timeLeft % 60).toString().padStart(2, '0');
+      document.getElementById('timer').textContent = `${mins}:${secs}`;
+    }
+
+    function resetTimer() {
+      timeLeft = config.pickTimeSeconds;
+      updateTimerUI();
+      document.getElementById('countdownOverlay').classList.remove('visible');
+    }
+
+    function updateUI() {
+      if (draftStarted && currentPick <= draftOrder.length) {
+        currentTeam = draftOrder[currentPick - 1];
+        document.getElementById('current-team').textContent = 'On the Clock: ' + currentTeam;
+        document.getElementById('submit').disabled = false;
+
+        // Update draft order for current round
+        const currentRound = Math.ceil(currentPick / config.numTeams);
+        const startIndex = (currentRound - 1) * config.numTeams;
+        const endIndex = startIndex + config.numTeams;
+        const roundOrder = draftOrder.slice(startIndex, endIndex);
+        const currentIndex = (currentPick - 1) % config.numTeams;
+        const orderHTML = roundOrder.map((team, i) => {
+          if (i === currentIndex) {
+            return `<span class="current">${team}</span>`;
+          }
+          return team;
+        }).join(', ');
+        document.getElementById('round-order').innerHTML = `Draft Order for Round ${currentRound}: ${orderHTML}`;
       } else {
-        // End of countdown
-        clearInterval(countdownInterval);
-        countdownOverlay.classList.remove('visible');
-        startButton.disabled = false;
-        
-        // Start the draft
-        draftStarted = true;
-        timeLeft = 120;
-        updateClock();
-        
-        if (timerInterval) clearInterval(timerInterval);
-        timerInterval = setInterval(updateClock, 1000);
+        document.getElementById('current-team').textContent = 'Draft Complete or Not Started';
+        document.getElementById('round-order').innerHTML = '';
+        clearInterval(timerInterval);
       }
-    }, 1000);
-  }
+    }
 
-  // Update the timer display
-  function updateClock() {
-    if (timerPaused || !draftStarted) return;
-    
-    const timerDisplay = document.getElementById('timer');
-    const currentTeamDisplay = document.getElementById('currentTeam');
-    
-    if (!timerDisplay || !currentTeamDisplay) return;
-    
-    // Update timer display
-    const minutes = Math.floor(timeLeft / 60);
-    const seconds = timeLeft % 60;
-    timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    
-    if (timeLeft <= 0) {
-      // Time's up - auto-pick if needed
-      clearInterval(timerInterval);
-      document.getElementById('buzzer').play();
-      
-      // Move to next pick if available
-      if (currentPickIndex < picks.length - 1) {
-        currentPickIndex++;
-        timeLeft = 120;
-        currentTeamDisplay.textContent = picks[currentPickIndex]?.team || 'Team ' + (currentPickIndex + 1);
-        updateDraftBoard();
-        timerInterval = setInterval(updateClock, 1000);
-      } else {
-        // Draft complete
-        currentTeamDisplay.textContent = "Draft Complete";
-        draftStarted = false;
+    document.getElementById('start').onclick = () => {
+      if (!isAdmin) return;
+      draftStarted = true;
+      startTimer();
+      updateUI();
+      document.getElementById('pause').disabled = false;
+      document.getElementById('start').disabled = true;
+      document.getElementById('undo').disabled = false;
+    };
+
+    document.getElementById('pause').onclick = () => { isPaused = true; document.getElementById('resume').disabled = false; };
+
+    document.getElementById('resume').onclick = () => { isPaused = false; document.getElementById('resume').disabled = true; };
+
+    document.getElementById('submit').onclick = async () => {
+      const player = document.getElementById('player').value.trim();
+      if (!player) return alert('Enter player name');
+      const { data: existing } = await supabase.from('draft_picks').select('player').eq('player', player);
+      if (existing.length > 0) return alert('Player already drafted');
+      if (playerPool.length > 0 && !playerPool.includes(player)) return alert('Player not in pool');
+
+      // Check picksPerTeam
+      const { data: teamPicks } = await supabase.from('draft_picks').select('id').eq('team', currentTeam);
+      if (teamPicks.length >= config.picksPerTeam) return alert(`${currentTeam} has reached max picks (${config.picksPerTeam})`);
+
+      const notes = document.getElementById('notes').value;
+      await submitPick(player, notes);
+    };
+
+    async function submitPick(player, notes) {
+      if (!isAdmin) return;
+      const round = Math.ceil(currentPick / config.numTeams);
+      const teamSlug = currentTeam.toLowerCase().replace(/\s+/g, '-');
+      const { error } = await supabase.from('draft_picks').insert({ pick: currentPick, round, team: currentTeam, team_slug: teamSlug, player, notes, traded: false });
+      if (error) alert(error.message);
+      else {
+        currentPick++;
+        resetTimer();
+        updateUI();
+        document.getElementById('player').value = '';
+        document.getElementById('notes').value = '';
       }
-    } else {
-      timeLeft--;
     }
-  }
 
-  // Submit a pick
-  async function submitPick() {
-    const input = document.getElementById("playerInput");
-    const noteInput = document.getElementById("tradeNoteInput");
-    const eventSelector = document.getElementById("eventSelector");
-    
-    const name = input.value.trim();
-    const note = noteInput.value.trim();
-    const eventId = parseInt(eventSelector.value, 10) || 1;
-
-    if (!name || currentPickIndex >= picks.length) return;
-
-    const pick = picks[currentPickIndex];
-    if (!pick || !pick.id) {
-      console.error("Invalid pick or missing ID:", pick);
-      alert("Error: Could not find pick data. Please refresh the page and try again.");
-      return;
-    }
-    
-    try {
-      // Update in Supabase
-      const { error } = await supabase
-        .from('draft_picks')
-        .update({
-          selected_player_id: name,
-          trade_note: note || null,
-          pick: pick.pick,
-          round: pick.round,
-          team: pick.team,
-          player: name,
-          event_id: eventId
-        })
-        .eq('id', pick.id);
-
-      if (error) throw error;
-
-      // Update local state
-      pick.player = name;
-      pick.trade_note = note;
-      pick.event_id = eventId;
-      
-      // Clear inputs
-      input.value = "";
-      noteInput.value = "";
-      
-      // Move to next pick
-      if (currentPickIndex < picks.length - 1) {
-        currentPickIndex++;
-        timeLeft = 120;
-        document.getElementById('currentTeam').textContent = picks[currentPickIndex]?.team || 'Team ' + (currentPickIndex + 1);
-      } else {
-        // Draft complete
-        document.getElementById('currentTeam').textContent = "Draft Complete";
-        draftStarted = false;
-        if (timerInterval) clearInterval(timerInterval);
+    document.getElementById('undo').onclick = async () => {
+      if (!isAdmin || currentPick <= 1) return;
+      const { error } = await supabase.from('draft_picks').delete().eq('pick', currentPick - 1);
+      if (error) alert(error.message);
+      else {
+        currentPick--;
+        resetTimer();
+        updateUI();
       }
-      
-      updateDraftBoard();
-      
-    } catch (error) {
-      console.error("Error updating pick:", error);
-      alert("Failed to save pick: " + (error.message || 'Unknown error'));
-    }
-  }
+    };
 
-  // Toggle traded status for current pick
-  function toggleTraded() {
-    if (currentPickIndex >= picks.length) return;
-    picks[currentPickIndex].traded = !picks[currentPickIndex].traded;
-    updateDraftBoard();
-  }
-
-  // Pause the draft timer
-  function pauseDraft() {
-    if (!draftStarted) return;
-    timerPaused = true;
-  }
-
-  // Resume the draft timer
-  function resumeDraft() {
-    if (!draftStarted) return;
-    timerPaused = false;
-  }
-
-  // Initialize when the page loads
-  document.addEventListener('DOMContentLoaded', () => {
-    initializeDraft();
-  });
-
-  // Make functions available globally
-  window.submitPick = submitPick;
-  window.pauseDraft = pauseDraft;
-  window.resumeDraft = resumeDraft;
-  window.startDraft = startDraft;
-  window.toggleTraded = toggleTraded;
-</script>
-
+    window.toggleTrade = async function(id) {
+      if (!isAdmin) return;
+      const { data } = await supabase.from('draft_picks').select('traded').eq('id', id).single();
+      const newTraded = !data.traded;
+      await supabase.from('draft_picks').update({ traded: newTraded }).eq('id', id);
+    };
+  </script>
 </body>
 </html>
