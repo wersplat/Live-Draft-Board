@@ -12,24 +12,28 @@ function slugify(filename) {
 }
 
 async function renameLogos() {
-  const files = await fs.readdir(logosDir);
-  for (const original of files) {
-    const ext = path.extname(original).toLowerCase();
-    const validExt = ['.png', '.jpg', '.jpeg', '.webp'];
-    if (!validExt.includes(ext)) continue;
+  try {
+    const files = await fs.readdir(logosDir);
+    for (const original of files) {
+      const ext = path.extname(original).toLowerCase();
+      const validExt = ['.png', '.jpg', '.jpeg', '.webp'];
+      if (!validExt.includes(ext)) continue;
 
-    const slug = slugify(original);
-    const newFilename = slug + '.png';
-    const oldPath = path.join(logosDir, original);
-    const newPath = path.join(logosDir, newFilename);
+      const slug = slugify(original);
+      const newFilename = slug + '.png';
+      const oldPath = path.join(logosDir, original);
+      const newPath = path.join(logosDir, newFilename);
 
-    if (original === newFilename || (await exists(newPath))) {
-      console.log(`⚠️ Skipped: ${original}`);
-      continue;
+      if (original === newFilename || (await exists(newPath))) {
+        console.log(`⚠� Skipped: Skipped ${original} (already exists or same)`);
+        continue;
+      }
+
+      await fs.rename(oldPath, newPath);
+      console.log(`✅ Renamed: ${original} → ${newFilename}`);
     }
-
-    await fs.rename(oldPath, newPath);
-    console.log(`✅ Renamed: ${original} → ${newFilename}`);
+  } catch (err) {
+    console.error('Error in renaming:', err.message);
   }
 }
 

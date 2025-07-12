@@ -108,3 +108,32 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - All participating teams and players
 - The open-source community for valuable tools and libraries
 
+## Supabase Schema
+Create table `draft_picks`:
+```
+id SERIAL PRIMARY KEY,
+pick INTEGER,
+round INTEGER,
+team TEXT,
+team_slug TEXT,
+player TEXT,
+notes TEXT,
+traded BOOLEAN DEFAULT FALSE
+```
+Enable RLS for auth users on updates.
+
+## Sample Players.json
+```json
+["Player1", "Player2", "Player3"]
+```
+
+## Environment Variables
+Create `.env` with:
+```
+SUPABASE_URL=your-url
+SUPABASE_ANON_KEY=your-key
+```
+
+## Screenshots
+- Main Board: [Screenshot description or link]
+- Team Page: [Screenshot description or link]

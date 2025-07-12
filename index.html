@@ -3,450 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🏀 Live Draft Board</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <title>🏀 UPA Summer Championship - Live Draft Board</title>
   <style>
-    body { 
-      font-family: 'Inter', sans-serif; 
-      background: #000; 
-      color: #fff; 
-      margin: 0; 
-      padding: 0; 
-      font-size: 20px; 
-    }
-    header { 
-      background: #B6094B; 
-      padding: 1rem; 
-      text-align: center; 
-    }
-    .draft-container { 
-      max-width: 1600px; 
-      margin: auto; 
-      padding: 2rem; 
-    }
-    .on-the-clock { 
-      background: #1E2132; 
-      padding: 2rem; 
-      border-radius: 20px; 
-      text-align: center; 
-      margin-bottom: 2rem; 
-    }
-    .on-the-clock h1 { 
-      font-size: 2.5rem; 
-      margin: 0.5rem 0; 
-    }
-    .timer { 
-      font-size: 3rem; 
-      color: #F2F4F5; 
-      margin-top: 0.5rem; 
-    }
-    .logo-inline { 
-      height: 40px; 
-      vertical-align: middle; 
-      margin-right: 10px; 
-    }
-    table { 
-      width: 100%; 
-      border-collapse: collapse; 
-      margin-top: 1rem; 
-      font-size: 1.4rem; 
-    }
-    th, td { 
-      padding: 1rem; 
-      border: 1px solid #444; 
-      text-align: left; 
-      vertical-align: top; 
-    }
-    th { 
-      background: #B6094B; 
-    }
-    .round-header { 
-      font-size: 1.8rem; 
-      font-weight: bold; 
-      margin: 2.5rem 0 1rem; 
-      border-bottom: 3px solid #B6094B; 
-      padding-bottom: 0.3rem; 
-    }
-    .footer { 
-      text-align: center; 
-      margin-top: 4rem; 
-      font-size: 1rem; 
-      color: #999; 
-    }
-    .control-panel { 
-      text-align: center; 
-      margin-top: 1rem; 
-    }
-    input[type="text"] { 
-      padding: 0.5rem; 
-      margin: 0.5rem; 
-      font-size: 1.2rem; 
-      width: 45%; 
-    }
-    button { 
-      padding: 0.6rem 1.2rem; 
-      margin: 0.5rem; 
-      background-color: #B6094B; 
-      border: none; 
-      color: white; 
-      font-size: 1rem; 
-      cursor: pointer; 
-    }
-    button:hover { 
-      background-color: #000; 
-    }
-    #countdownOverlay { 
-      position: fixed; 
-      top: 0; 
-      left: 0; 
-      width: 100%; 
-      height: 100%; 
-      background: rgba(0, 0, 0, 0.95); 
-      color: #fff; 
-      font-size: 30rem; 
-      font-weight: bold; 
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
-      z-index: 999; 
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    }
-    .visible {
-      opacity: 1;
-    }
-    .event-selector {
-      padding: 8px 12px;
-      margin-right: 10px;
-      border: 1px solid #444;
-      border-radius: 4px;
-      background-color: #2d2d2d;
-      color: #fff;
-      font-size: 14px;
-      cursor: pointer;
-    }
-    .event-selector:focus {
-      outline: none;
-      border-color: #646cff;
-      box-shadow: 0 0 0 2px rgba(100, 108, 255, 0.2);
-    }
-    .controls {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-    .controls > div {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-    /* Merged previous styles for compatibility */
-    :root { --theme-color: #B6094B; } /* Adjusted to match primary color */
-    h1 { color: var(--theme-color); }
-    .timer { color: var(--theme-color); } /* Override to use theme */
-    .traded { background-color: #333; } /* Dark mode adjustment */
-    #auth-section { margin-bottom: 20px; }
-    #prizes { margin: 20px 0; }
-    .round-order {
-      font-size: 1.2rem;
-      margin-top: 1rem;
-      color: #ccc;
-    }
-    .round-order span.current {
-      font-weight: bold;
-      color: #fff;
-    }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f8f9fa; color: #333; }
+    header { text-align: center; margin-bottom: 20px; }
+    #draft-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+    .team-card { border: 1px solid #ddd; padding: 10px; border-radius: 8px; background: white; }
+    .team-card img { max-width: 100px; display: block; margin: 0 auto; }
+    #controls { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0; }
+    button { padding: 10px 20px; background: var(--theme-color, #007BFF); color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { opacity: 0.9; }
+    #timer { font-size: 1.5em; text-align: center; margin: 10px 0; }
+    #progress { text-align: center; font-weight: bold; }
+    #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #28a745; color: white; padding: 10px; border-radius: 4px; display: none; }
+    @media (max-width: 768px) { #controls { flex-direction: column; } #draft-board { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
   <header>
-    <h1 id="event-header">🏀 Loading... - Live Draft Board</h1>
-    <p id="event-info">Loading...</p>
-    <div id="prizes"></div>
+    <h1>UPA Summer Championship - Live Draft Board</h1>
+    <p id="progress">Draft Progress: 0/96 picks complete</p>
   </header>
 
-  <div class="draft-container">
-    <div id="auth-section" class="control-panel">
-      <input id="email" type="email" placeholder="Admin Email" aria-label="Admin Email">
-      <input id="password" type="password" placeholder="Password" aria-label="Admin Password">
-      <button id="login">Login</button>
-      <button id="logout" style="display:none;">Logout</button>
-      <p id="auth-status"></p>
-    </div>
+  <main>
+    <section id="clock" aria-live="polite">
+      <p>On the Clock: <span id="current-team">-</span></p>
+      <p id="timer">02:00</p>
+    </section>
 
-    <div class="on-the-clock">
-      <div id="current-team">On the Clock: -</div>
-      <div id="timer" class="timer" aria-live="polite">02:00</div>
-      <div id="round-order" class="round-order"></div>
-    </div>
+    <section id="controls">
+      <button id="start-draft">Start Draft</button>
+      <button id="pause-draft" disabled>Pause</button>
+      <button id="resume-draft" disabled>Resume</button>
+      <input type="text" id="player-input" placeholder="Player name" list="player-datalist" aria-label="Select player">
+      <datalist id="player-datalist"></datalist>
+      <input type="text" id="notes-input" placeholder="Trade notes (optional)" aria-label="Trade notes">
+      <button id="submit-pick" disabled>Submit Pick</button>
+      <button id="undo-pick" disabled>Undo Last Pick</button>
+      <button id="toggle-traded">Toggle Traded</button>
+    </section>
 
-    <div class="controls" id="admin-controls" style="display:none;">
-      <div>
-        <button id="start">Start Draft</button>
-        <button id="pause" disabled>Pause</button>
-        <button id="resume" disabled>Resume</button>
-      </div>
-      <div>
-        <input id="player" type="text" placeholder="Player Name" aria-label="Player Name">
-        <input id="notes" type="text" placeholder="Trade Notes (optional)" aria-label="Trade Notes">
-      </div>
-      <div>
-        <button id="submit" disabled>Submit Pick</button>
-        <button id="undo" disabled>Undo Last Pick</button>
-      </div>
-    </div>
+    <section id="draft-board" aria-label="Draft board grid"></section>
+  </main>
 
-    <div id="picks-container"></div> <!-- Picks will be grouped by round here -->
+  <footer>
+    <p>Live Draft Board © 2025</p>
+  </footer>
 
-    <div id="countdownOverlay"></div>
-  </div>
+  <div id="toast" role="alert" aria-live="assertive"></div>
 
-  <div class="footer">Live Draft Board © 2025</div>
-
-  <script>
-    const supabase = Supabase.createClient('https://your-supabase-url.supabase.co', 'your-anon-key'); // Replace with actual
-
-    let config;
-    let playerPool = [];
-    async function loadConfig() {
-      try {
-        const response = await fetch('config.json');
-        if (!response.ok) throw new Error('Config not found');
-        config = await response.json();
-        document.title = `🏀 ${config.eventTitle} - Live Draft Board`;
-        document.getElementById('event-header').textContent = `🏀 ${config.eventTitle} - Live Draft Board`;
-        const formattedDate = new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeZone: config.timezone }).format(new Date(config.draftDate));
-        const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: config.currency });
-        document.getElementById('event-info').textContent = `💰 ${formatter.format(config.prizePool)} Prize Pool • 📅 Draft: ${formattedDate}`;
-        document.body.style.setProperty('--theme-color', config.themeColor);
-
-        // Display prize breakdown
-        const prizesDiv = document.getElementById('prizes');
-        if (config.prizeBreakdown && config.prizeBreakdown.length > 0) {
-          prizesDiv.innerHTML = '<h3>Prize Breakdown</h3><ul>' + config.prizeBreakdown.map(p => `<li>${p.place}st Place: ${formatter.format(p.amount)}</li>`).join('') + '</ul>';
-        }
-
-        // Load player pool if file specified
-        if (config.playerPoolFile) {
-          const poolResponse = await fetch(config.playerPoolFile);
-          if (poolResponse.ok) playerPool = await poolResponse.json();
-        }
-      } catch (e) {
-        console.error('Failed to load config:', e);
-        alert('Error loading configuration. Using defaults.');
-        config = { eventTitle: 'Event', numTeams: 16, numRounds: 6, pickTimeSeconds: 120, teams: [], prizePool: 0, draftDate: 'TBD', draftType: 'snake', customDraftOrder: null, picksPerTeam: 6, autoSkipOnTimeout: true, currency: 'USD', timezone: 'UTC', rulesUrl: '', playerPoolFile: '', themeColor: '#B6094B', prizeBreakdown: [] };
-      }
-    }
-    await loadConfig();
-
-    let isAdmin = false;
-    let currentPick = 1;
-    let currentTeam = '';
-    let timerInterval;
-    let timeLeft = config.pickTimeSeconds;
-    let isPaused = false;
-    let draftStarted = false;
-
-    // Generate or use custom draft order
-    let draftOrder = config.customDraftOrder || [];
-    if (!draftOrder.length) {
-      for (let round = 1; round <= config.numRounds; round++) {
-        let roundOrder = [...config.teams];
-        if (config.draftType === 'snake' && round % 2 === 0) roundOrder.reverse();
-        draftOrder.push(...roundOrder);
-      }
-    }
-
-    const audioAlert = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAHAAoADADAAgAA'); // Placeholder beep
-
-    document.getElementById('login').onclick = async () => {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      try {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        isAdmin = true;
-        document.getElementById('auth-status').textContent = 'Logged in as admin';
-        document.getElementById('admin-controls').style.display = 'flex';
-        document.getElementById('logout').style.display = 'inline';
-        document.getElementById('login').disabled = true;
-      } catch (e) {
-        alert('Login failed: ' + e.message);
-      }
-    };
-    document.getElementById('logout').onclick = async () => {
-      await supabase.auth.signOut();
-      isAdmin = false;
-      location.reload();
-    };
-
-    async function loadPicks() {
-      const { data, error } = await supabase.from('draft_picks').select('*').order('pick');
-      if (error) console.error(error);
-      const container = document.getElementById('picks-container');
-      container.innerHTML = '';
-      if (data.length === 0) return;
-
-      let currentRound = 1;
-      let table = createRoundTable(currentRound);
-      data.forEach(pick => {
-        if (pick.round > currentRound) {
-          container.appendChild(table);
-          currentRound = pick.round;
-          table = createRoundTable(currentRound);
-        }
-        const row = document.createElement('tr');
-        row.innerHTML = `<td>${pick.pick}</td><td>${pick.round}</td><td>${pick.team}</td><td>${pick.player}</td><td>${pick.notes || ''}</td><td>${pick.traded ? 'Yes' : 'No'}</td><td>${isAdmin ? '<button onclick="toggleTrade(\'' + pick.id + '\')">Toggle Traded</button>' : ''}</td>`;
-        if (pick.traded) row.classList.add('traded');
-        table.querySelector('tbody').appendChild(row);
-      });
-      container.appendChild(table);
-      currentPick = data.length + 1;
-      updateUI();
-    }
-
-    function createRoundTable(round) {
-      const div = document.createElement('div');
-      div.innerHTML = `<div class="round-header">Round ${round}</div>`;
-      const table = document.createElement('table');
-      table.innerHTML = '<thead><tr><th>Pick</th><th>Round</th><th>Team</th><th>Player</th><th>Notes</th><th>Traded</th><th>Actions</th></tr></thead><tbody></tbody>';
-      div.appendChild(table);
-      return div;
-    }
-
-    supabase.channel('draft_picks')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'draft_picks' }, () => loadPicks())
-      .subscribe();
-
-    loadPicks();
-
-    function startTimer() {
-      timerInterval = setInterval(() => {
-        if (!isPaused) {
-          timeLeft--;
-          if (timeLeft <= 10) audioAlert.play();
-          if (timeLeft <= 5) {
-            document.getElementById('countdownOverlay').textContent = timeLeft;
-            document.getElementById('countdownOverlay').classList.add('visible');
-          } else {
-            document.getElementById('countdownOverlay').classList.remove('visible');
-          }
-          if (timeLeft <= 0) {
-            document.getElementById('countdownOverlay').classList.remove('visible');
-            if (config.autoSkipOnTimeout) {
-              submitPick('Auto-Skipped', 'Time expired');
-            } else {
-              alert('Time up for ' + currentTeam + '! Extend or skip manually.');
-            }
-          }
-          updateTimerUI();
-        }
-      }, 1000);
-    }
-
-    function updateTimerUI() {
-      const mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
-      const secs = (timeLeft % 60).toString().padStart(2, '0');
-      document.getElementById('timer').textContent = `${mins}:${secs}`;
-    }
-
-    function resetTimer() {
-      timeLeft = config.pickTimeSeconds;
-      updateTimerUI();
-      document.getElementById('countdownOverlay').classList.remove('visible');
-    }
-
-    function updateUI() {
-      if (draftStarted && currentPick <= draftOrder.length) {
-        currentTeam = draftOrder[currentPick - 1];
-        document.getElementById('current-team').textContent = 'On the Clock: ' + currentTeam;
-        document.getElementById('submit').disabled = false;
-
-        // Update draft order for current round
-        const currentRound = Math.ceil(currentPick / config.numTeams);
-        const startIndex = (currentRound - 1) * config.numTeams;
-        const endIndex = startIndex + config.numTeams;
-        const roundOrder = draftOrder.slice(startIndex, endIndex);
-        const currentIndex = (currentPick - 1) % config.numTeams;
-        const orderHTML = roundOrder.map((team, i) => {
-          if (i === currentIndex) {
-            return `<span class="current">${team}</span>`;
-          }
-          return team;
-        }).join(', ');
-        document.getElementById('round-order').innerHTML = `Draft Order for Round ${currentRound}: ${orderHTML}`;
-      } else {
-        document.getElementById('current-team').textContent = 'Draft Complete or Not Started';
-        document.getElementById('round-order').innerHTML = '';
-        clearInterval(timerInterval);
-      }
-    }
-
-    document.getElementById('start').onclick = () => {
-      if (!isAdmin) return;
-      draftStarted = true;
-      startTimer();
-      updateUI();
-      document.getElementById('pause').disabled = false;
-      document.getElementById('start').disabled = true;
-      document.getElementById('undo').disabled = false;
-    };
-
-    document.getElementById('pause').onclick = () => { isPaused = true; document.getElementById('resume').disabled = false; };
-
-    document.getElementById('resume').onclick = () => { isPaused = false; document.getElementById('resume').disabled = true; };
-
-    document.getElementById('submit').onclick = async () => {
-      const player = document.getElementById('player').value.trim();
-      if (!player) return alert('Enter player name');
-      const { data: existing } = await supabase.from('draft_picks').select('player').eq('player', player);
-      if (existing.length > 0) return alert('Player already drafted');
-      if (playerPool.length > 0 && !playerPool.includes(player)) return alert('Player not in pool');
-
-      // Check picksPerTeam
-      const { data: teamPicks } = await supabase.from('draft_picks').select('id').eq('team', currentTeam);
-      if (teamPicks.length >= config.picksPerTeam) return alert(`${currentTeam} has reached max picks (${config.picksPerTeam})`);
-
-      const notes = document.getElementById('notes').value;
-      await submitPick(player, notes);
-    };
-
-    async function submitPick(player, notes) {
-      if (!isAdmin) return;
-      const round = Math.ceil(currentPick / config.numTeams);
-      const teamSlug = currentTeam.toLowerCase().replace(/\s+/g, '-');
-      const { error } = await supabase.from('draft_picks').insert({ pick: currentPick, round, team: currentTeam, team_slug: teamSlug, player, notes, traded: false });
-      if (error) alert(error.message);
-      else {
-        currentPick++;
-        resetTimer();
-        updateUI();
-        document.getElementById('player').value = '';
-        document.getElementById('notes').value = '';
-      }
-    }
-
-    document.getElementById('undo').onclick = async () => {
-      if (!isAdmin || currentPick <= 1) return;
-      const { error } = await supabase.from('draft_picks').delete().eq('pick', currentPick - 1);
-      if (error) alert(error.message);
-      else {
-        currentPick--;
-        resetTimer();
-        updateUI();
-      }
-    };
-
-    window.toggleTrade = async function(id) {
-      if (!isAdmin) return;
-      const { data } = await supabase.from('draft_picks').select('traded').eq('id', id).single();
-      const newTraded = !data.traded;
-      await supabase.from('draft_picks').update({ traded: newTraded }).eq('id', id);
-    };
-  </script>
+  <script type="module" src="draft-manager.js"></script>
 </body>
 </html>
