@@ -1,5 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
 // Config load (assume config.json is fetched or hardcoded for simplicity)
 async function loadConfig() {
   const response = await fetch('./config.json');
@@ -11,7 +9,8 @@ async function loadConfig() {
 }
 
 const config = await loadConfig();
-const supabase = createClient(process.env.SUPABASE_URL || 'your-supabase-url', process.env.SUPABASE_ANON_KEY || 'your-anon-key');
+// Initialize Supabase with your project URL and anon key
+const supabase = window.supabase.createClient(process.env.SUPABASE_URL || 'your-supabase-url', process.env.SUPABASE_ANON_KEY || 'your-anon-key');
 
 let currentPick = 1;
 let timerInterval;
